@@ -3,7 +3,6 @@
 // シンプル版：DriveのCSVを読んでそのまま返す
 // ============================================================
 
-// IDはスクリプトプロパティから取得（GASエディタ → プロジェクトの設定 → スクリプトプロパティ）
 const _props = PropertiesService.getScriptProperties();
 const SPREADSHEET_ID = _props.getProperty('SPREADSHEET_ID');
 
@@ -13,12 +12,6 @@ const FOLDER_IDS = {
   zozo_reserve:_props.getProperty('FOLDER_ZOZO_RESERVE'),
   rakuten:     _props.getProperty('FOLDER_RAKUTEN'),
   shipments:   _props.getProperty('FOLDER_SHIPMENTS'),
-};
-
-const SHEET_NAMES = {
-  meta:    '取込履歴',
-  transit: '在途在庫',
-  orders:  '工場発注',
 };
 
 // ════════════════════════════════════════════════════════
