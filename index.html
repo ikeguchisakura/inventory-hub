@@ -1,0 +1,3636 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>在庫管理ハブ｜子供服</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0f0e0d;
+  --ink2: #3a3835;
+  --muted: #8a8680;
+  --rule: #e8e5df;
+  --bg: #faf9f6;
+  --surface: #ffffff;
+  --surface2: #f3f1ec;
+  --mint: #00a878;
+  --mint-dim: #e6f7f2;
+  --amber: #e07b00;
+  --amber-dim: #fff4e0;
+  --coral: #e84855;
+  --coral-dim: #fdeef0;
+  --blue: #1a6ef0;
+  --blue-dim: #eaf1fe;
+  --purple: #7c4dff;
+  --purple-dim: #f0ebff;
+  --r: 10px;
+  --r-sm: 6px;
+  --sh: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05);
+  --sh-lg: 0 8px 32px rgba(0,0,0,0.12);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--ink); font-size: 13px; line-height: 1.5; }
+
+/* ── NAV ── */
+nav {
+  position: sticky; top: 0; z-index: 90;
+  background: var(--ink); color: white;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px; height: 56px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+}
+.nav-brand { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 800; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; }
+.nav-brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mint); display: inline-block; }
+.nav-tabs { display: flex; gap: 2px; }
+.nav-tab {
+  padding: 8px 16px; border-radius: var(--r-sm); font-size: 12px; font-weight: 600;
+  cursor: pointer; border: none; background: none; color: rgba(255,255,255,0.55);
+  transition: all 0.15s; font-family: 'Noto Sans JP', sans-serif; letter-spacing: 0.3px;
+}
+.nav-tab:hover { color: white; background: rgba(255,255,255,0.1); }
+.nav-tab.active { color: var(--ink); background: white; }
+.nav-right { font-family: 'DM Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.4); }
+
+/* ── PAGES ── */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── LAYOUT ── */
+.container { max-width: 1400px; margin: 0 auto; padding: 28px 24px; }
+.section-title {
+  font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+  margin-bottom: 6px; color: var(--ink);
+}
+.section-sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+
+/* ── KPI GRID ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 28px; }
+.kpi {
+  background: var(--surface); border-radius: var(--r); padding: 18px 20px;
+  border: 1px solid var(--rule); box-shadow: var(--sh); position: relative; overflow: hidden;
+}
+.kpi::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.kpi.mint::before { background: var(--mint); }
+.kpi.amber::before { background: var(--amber); }
+.kpi.coral::before { background: var(--coral); }
+.kpi.blue::before { background: var(--blue); }
+.kpi.purple::before { background: var(--purple); }
+.kpi-icon { font-size: 20px; margin-bottom: 10px; }
+.kpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; }
+.kpi-value { font-family: 'DM Mono', monospace; font-size: 26px; font-weight: 500; line-height: 1; margin-bottom: 4px; }
+.kpi-value.mint { color: var(--mint); }
+.kpi-value.amber { color: var(--amber); }
+.kpi-value.coral { color: var(--coral); }
+.kpi-value.blue { color: var(--blue); }
+.kpi-value.purple { color: var(--purple); }
+.kpi-sub { font-size: 11px; color: var(--muted); }
+
+/* ── CARD ── */
+.card { background: var(--surface); border-radius: var(--r); border: 1px solid var(--rule); box-shadow: var(--sh); overflow: hidden; margin-bottom: 20px; }
+.card-head { padding: 16px 20px; border-bottom: 1px solid var(--rule); background: var(--surface2); display: flex; align-items: center; justify-content: space-between; }
+.card-head-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 20px; }
+
+/* ── CHANNEL STRIP ── */
+.channel-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 24px; }
+.ch-card {
+  border-radius: var(--r-sm); padding: 14px; border: 2px solid var(--rule);
+  background: white; text-align: center; transition: all 0.15s;
+}
+.ch-card:hover { border-color: var(--mint); transform: translateY(-2px); }
+.ch-icon { font-size: 22px; margin-bottom: 6px; }
+.ch-name { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.ch-stock { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; color: var(--ink); }
+.ch-stock-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* ── TABLE ── */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead tr { background: var(--surface2); }
+th { padding: 11px 14px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); border-bottom: 1px solid var(--rule); white-space: nowrap; cursor: pointer; }
+th:hover { color: var(--ink); }
+td { padding: 13px 14px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: #faf9f7; }
+.mono { font-family: 'DM Mono', monospace; }
+.fw7 { font-weight: 700; }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+
+/* ── BADGES ── */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.badge-mint { background: var(--mint-dim); color: #007a57; }
+.badge-amber { background: var(--amber-dim); color: #a05a00; }
+.badge-coral { background: var(--coral-dim); color: #b52030; }
+.badge-blue { background: var(--blue-dim); color: #1050b0; }
+.badge-purple { background: var(--purple-dim); color: #5030cc; }
+.badge-gray { background: var(--surface2); color: var(--muted); }
+
+/* ── TRANSIT STATUS ── */
+.transit-flow { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.transit-node { padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 11px; }
+.transit-arrow { color: var(--muted); font-size: 14px; }
+.node-from { background: var(--blue-dim); color: var(--blue); }
+.node-to { background: var(--mint-dim); color: var(--mint); }
+.node-qty { background: var(--amber-dim); color: var(--amber); font-family: 'DM Mono', monospace; }
+
+/* ── PROGRESS BAR ── */
+.progress-wrap { width: 100%; background: var(--rule); border-radius: 999px; height: 6px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 999px; transition: width 0.4s; }
+.fill-mint { background: var(--mint); }
+.fill-amber { background: var(--amber); }
+.fill-coral { background: var(--coral); }
+
+/* ── BUTTONS ── */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--r-sm); font-size: 12px; font-weight: 700; cursor: pointer; border: none; font-family: 'Noto Sans JP', sans-serif; transition: all 0.15s; white-space: nowrap; }
+.btn-primary { background: var(--ink); color: white; }
+.btn-primary:hover { background: var(--ink2); }
+.btn-mint { background: var(--mint); color: white; }
+.btn-mint:hover { background: #008863; }
+.btn-ghost { background: none; border: 1.5px solid var(--rule); color: var(--ink2); }
+.btn-ghost:hover { background: var(--surface2); }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+.btn-icon { padding: 6px 8px; background: none; border: 1.5px solid var(--rule); border-radius: var(--r-sm); cursor: pointer; font-size: 13px; color: var(--muted); transition: all 0.15s; }
+.btn-icon:hover { background: var(--surface2); color: var(--ink); border-color: var(--muted); }
+
+/* ── TOOLBAR ── */
+.toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px 20px; border-bottom: 1px solid var(--rule); background: var(--surface); }
+.toolbar input[type=text], .toolbar select { font-family: 'Noto Sans JP', sans-serif; font-size: 12px; padding: 7px 12px; border: 1.5px solid var(--rule); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); outline: none; transition: border-color 0.15s; }
+.toolbar input[type=text]:focus, .toolbar select:focus { border-color: var(--mint); }
+.search-wrap { position: relative; }
+.search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--muted); pointer-events: none; }
+.toolbar .search-wrap input { padding-left: 30px; width: 240px; }
+.spacer { flex: 1; }
+
+/* ── MODAL ── */
+.overlay { position: fixed; inset: 0; background: rgba(15,14,13,0.5); backdrop-filter: blur(3px); display: none; place-items: center; z-index: 200; }
+.overlay.open { display: grid; animation: fadeIn 0.15s; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal { background: var(--surface); border-radius: var(--r); box-shadow: var(--sh-lg); width: min(580px, 95vw); max-height: 88vh; overflow-y: auto; animation: slideUp 0.2s; }
+@keyframes slideUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-head { padding: 20px 24px; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted); padding: 2px 6px; }
+.modal-close:hover { color: var(--ink); }
+.modal-body { padding: 24px; }
+.modal-foot { padding: 14px 24px; border-top: 1px solid var(--rule); display: flex; justify-content: flex-end; gap: 10px; background: var(--surface2); }
+
+/* ── FORM ── */
+.fg { margin-bottom: 16px; }
+.fg label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 5px; }
+.fg label .req { color: var(--coral); }
+.fg input, .fg select, .fg textarea {
+  width: 100%; font-family: 'Noto Sans JP', sans-serif; font-size: 13px;
+  padding: 9px 12px; border: 1.5px solid var(--rule); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink); outline: none; transition: border-color 0.15s;
+}
+.fg input:focus, .fg select:focus, .fg textarea:focus { border-color: var(--mint); box-shadow: 0 0 0 3px var(--mint-dim); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+/* ── FORECAST CHART ── */
+.chart-area { width: 100%; height: 220px; position: relative; }
+.chart-bars { display: flex; align-items: flex-end; gap: 6px; height: 180px; padding: 0 4px; }
+.bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.bar-wrap { width: 100%; display: flex; gap: 2px; align-items: flex-end; height: 160px; }
+.bar { flex: 1; border-radius: 4px 4px 0 0; transition: opacity 0.15s; cursor: default; position: relative; min-height: 4px; }
+.bar:hover { opacity: 0.8; }
+.bar-label { font-size: 10px; color: var(--muted); white-space: nowrap; }
+.chart-legend { display: flex; gap: 16px; justify-content: center; margin-top: 12px; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+/* ── FORECAST TABLE ── */
+.forecast-sku { font-size: 12px; font-weight: 700; }
+.forecast-detail { font-size: 11px; color: var(--muted); }
+.score-bar { display: flex; align-items: center; gap: 8px; }
+.score-num { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; min-width: 32px; }
+
+/* ── TOAST ── */
+#toasts { position: fixed; bottom: 24px; right: 24px; z-index: 300; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: var(--ink); color: white; padding: 11px 18px; border-radius: var(--r-sm); font-size: 12px; font-weight: 600; box-shadow: var(--sh-lg); animation: toastIn 0.2s; max-width: 320px; display: flex; align-items: center; gap: 8px; }
+.toast.success { background: var(--mint); }
+.toast.warn { background: var(--amber); color: var(--ink); }
+.toast.error { background: var(--coral); }
+@keyframes toastIn { from { transform: translateX(16px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ── EMPTY STATE ── */
+.empty { text-align: center; padding: 48px 20px; color: var(--muted); }
+.empty-icon { font-size: 40px; margin-bottom: 10px; }
+.empty-title { font-size: 15px; font-weight: 700; color: var(--ink2); margin-bottom: 5px; }
+
+/* ── ALERT STRIP ── */
+.alert-strip { border-radius: var(--r-sm); padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; }
+.alert-strip.amber { background: var(--amber-dim); color: #7a4f00; border: 1px solid #f7d8a0; }
+.alert-strip.coral { background: var(--coral-dim); color: #8a1520; border: 1px solid #f5b8bc; }
+.alert-strip.mint { background: var(--mint-dim); color: #005c3d; border: 1px solid #9de3cc; }
+
+/* ── UPLOAD ZONE ── */
+.upload-zone {
+  border: 2px dashed var(--rule); border-radius: var(--r); padding: 28px; text-align: center;
+  cursor: pointer; transition: all 0.15s; background: var(--surface2);
+}
+.upload-zone:hover, .upload-zone.drag { border-color: var(--mint); background: var(--mint-dim); }
+.upload-icon { font-size: 32px; margin-bottom: 8px; }
+.upload-title { font-weight: 700; margin-bottom: 4px; }
+.upload-sub { color: var(--muted); font-size: 12px; }
+
+/* ── INFO ROW ── */
+.info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.info-box { background: var(--surface2); border-radius: var(--r-sm); padding: 14px; border: 1px solid var(--rule); }
+.info-box-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 4px; }
+.info-box-value { font-size: 18px; font-weight: 700; font-family: 'DM Mono', monospace; }
+
+/* RESPONSIVE */
+@media(max-width:900px) {
+  .kpi-grid { grid-template-columns: repeat(3,1fr); }
+  .channel-strip { grid-template-columns: repeat(3,1fr); }
+}
+@media(max-width:600px) {
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+  .channel-strip { grid-template-columns: 1fr 1fr; }
+  .form-row, .form-row3 { grid-template-columns: 1fr; }
+  nav { padding: 0 12px; }
+  .nav-tabs { display: none; }
+}
+
+.ch-toggle {
+  display:inline-flex; align-items:center; gap:4px; padding:4px 8px;
+  border-radius:var(--r-sm); border:1.5px solid var(--rule); background:white;
+  font-size:11px; font-weight:600; cursor:pointer; user-select:none;
+  transition:all 0.15s; color:var(--muted);
+}
+.ch-toggle:has(input:checked) { border-color:var(--mint); background:var(--mint-dim); color:var(--mint); }
+.ch-toggle input { display:none; }
+
+/* Stock cell coloring */
+.sc-ok  { color:var(--mint);  font-weight:700; }
+.sc-low { color:var(--amber); font-weight:700; }
+.sc-out { color:var(--coral); font-weight:700; }
+
+/* DIVIDER LINE */
+.hr { border: none; border-top: 1px solid var(--rule); margin: 20px 0; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+
+/* LINK STYLE */
+a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
+
+/* JAN toggle */
+.jan-hidden { display: none !important; }
+
+/* STOCK FILTER MENU */
+#prodTable thead th { position: relative; }
+.stock-filter-menu { text-align: left; }
+.jan-hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand"><span class="nav-brand-dot"></span> 在庫管理ハブ</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="goPage('overview')">📊 ダッシュボード</button>
+    <button class="nav-tab" onclick="goPage('products')">📋 商品一覧</button>
+    <button class="nav-tab" onclick="goPage('reserve')">🎫 予約管理</button>
+    <button class="nav-tab" onclick="goPage('transit')">🚢 工場出荷</button>
+    <button class="nav-tab" onclick="goPage('forecast')">📈 発注予測</button>
+    <button class="nav-tab" onclick="goPage('order')">🏭 工場発注</button>
+  </div>
+  <div class="nav-right" id="navDate"></div>
+</nav>
+
+<div id="toasts"></div>
+
+<!-- ══════════════ PAGE: OVERVIEW ══════════════ -->
+<div class="page active" id="page-overview">
+<div class="container">
+  <div class="section-title">📊 在庫ダッシュボード</div>
+  <div class="section-sub">全チャネルの在庫サマリー・アラート一覧</div>
+
+  <div id="overviewAlerts"></div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi mint">
+      <div class="kpi-icon">📦</div>
+      <div class="kpi-label">総SKU数</div>
+      <div class="kpi-value mint" id="kpiSku">—</div>
+      <div class="kpi-sub">登録商品</div>
+    </div>
+    <div class="kpi amber">
+      <div class="kpi-icon">🏬</div>
+      <div class="kpi-label">全チャネル在庫金額</div>
+      <div class="kpi-value amber" id="kpiTotalAmount">—</div>
+      <div class="kpi-sub" id="kpiTotalAmountSub">スマレジ連携値（税抜）</div>
+    </div>
+    <div class="kpi coral">
+      <div class="kpi-icon">🚚</div>
+      <div class="kpi-label">在途中アイテム</div>
+      <div class="kpi-value coral" id="kpiTransit">0</div>
+      <div class="kpi-sub">移動中SKU</div>
+    </div>
+    <div class="kpi blue">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">要発注SKU</div>
+      <div class="kpi-value blue" id="kpiForecastAlert">0</div>
+      <div class="kpi-sub">在庫不足予測</div>
+    </div>
+    <div class="kpi purple">
+      <div class="kpi-icon">🏭</div>
+      <div class="kpi-label">発注中SKU</div>
+      <div class="kpi-value purple" id="kpiOrdering">0</div>
+      <div class="kpi-sub">工場発注済み</div>
+    </div>
+  </div>
+
+  <!-- CHANNEL STOCK -->
+  <div class="card">
+    <div class="card-head"><div class="card-head-title">🏪 チャネル別在庫 — スナップショット</div>
+      <span style="font-size:11px;color:var(--muted)">※スマレジ・CSV最終取込値</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px;">
+        <div class="ch-card"><div class="ch-icon">🏭</div><div class="ch-name">倉庫</div><div class="ch-stock" id="ch-warehouse" style="font-size:16px">—</div><div class="ch-stock-label" id="ch-warehouse-label">—</div></div>
+        <div class="ch-card"><div class="ch-icon">🌐</div><div class="ch-name">オンライン</div><div class="ch-stock" id="ch-shopify" style="font-size:16px">—</div><div class="ch-stock-label" id="ch-shopify-label">—</div></div>
+        <div class="ch-card"><div class="ch-icon">🏬</div><div class="ch-name">代官山</div><div class="ch-stock" id="ch-daikanyama" style="font-size:16px">—</div><div class="ch-stock-label" id="ch-daikanyama-label">—</div></div>
+        <div class="ch-card"><div class="ch-icon">🏬</div><div class="ch-name">名古屋</div><div class="ch-stock" id="ch-nagoya" style="font-size:16px">—</div><div class="ch-stock-label" id="ch-nagoya-label">—</div></div>
+        <div class="ch-card"><div class="ch-icon">🏬</div><div class="ch-name">神戸</div><div class="ch-stock" id="ch-kobe" style="font-size:16px">—</div><div class="ch-stock-label" id="ch-kobe-label">—</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px;">
+        <div class="ch-card"><div class="ch-icon">🏷️</div><div class="ch-name">bazar</div><div class="ch-stock" id="ch-bazar" style="font-size:16px">—</div><div class="ch-stock-label" id="ch-bazar-label">—</div></div>
+        <div class="ch-card"><div class="ch-icon">💚</div><div class="ch-name">LINEギフト</div><div class="ch-stock" id="ch-linegift" style="font-size:16px">—</div><div class="ch-stock-label" id="ch-linegift-label">—</div></div>
+        <div class="ch-card"><div class="ch-icon">👗</div><div class="ch-name">ZOZO</div><div class="ch-stock" id="ch-zozo" style="font-size:16px">—</div><div class="ch-stock-label" id="ch-zozo-label">—</div></div>
+        <div class="ch-card"><div class="ch-icon">📦</div><div class="ch-name">Amazon</div><div class="ch-stock" id="ch-amazon" style="font-size:16px">—</div><div class="ch-stock-label" id="ch-amazon-label">—</div></div>
+        <div class="ch-card"><div class="ch-icon">🛒</div><div class="ch-name">楽天</div><div class="ch-stock" id="ch-rakuten" style="font-size:16px">—</div><div class="ch-stock-label" id="ch-rakuten-label">—</div></div>
+      </div>
+
+      <!-- クラウド同期バナー -->
+      <div id="cloudBanner" style="background:var(--mint-dim);border:1.5px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--mint)">☁️ クラウド共有設定</div>
+            <div id="cloudBannerSub" style="font-size:11px;color:var(--ink2);margin-top:2px">設定するとチーム全員が同じデータを見られます</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-sm" onclick="loadFromCloud(true)" style="white-space:nowrap">☁️ 今すぐ同期</button>
+            <button class="btn btn-ghost btn-sm" onclick="showMeta()" style="white-space:nowrap">📋 取込履歴</button>
+            <button onclick="openGasSettings()" style="background:var(--mint);color:white;border:none;border-radius:var(--r-sm);padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">⚙️ 共有設定を開く</button>
+          </div>
+        </div>
+    </div>
+  </div>
+
+  <!-- RECENT TRANSIT SUMMARY -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-title">🚚 在途在庫 — 直近アラート</div>
+      <button class="btn btn-ghost btn-sm" onclick="goPage('transit')">すべて見る →</button>
+    </div>
+    <div class="card-body" id="overviewTransitList">
+      <div class="empty"><div class="empty-icon">✅</div><div class="empty-title">在途中アイテムなし</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════ PAGE: PRODUCTS ══════════════ -->
+<div class="page" id="page-products">
+<div class="container">
+  <div class="section-title">📋 商品一覧</div>
+  <div class="section-sub">品番・カラー・サイズ別の在庫を店舗ごとに確認</div>
+
+  <div class="card">
+    <div class="toolbar" style="flex-wrap:wrap;gap:8px;">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="品番・商品名で検索..." id="prodSearch" oninput="renderProducts()" style="width:220px;">
+      </div>
+      <select id="prodColorFilter" onchange="renderProducts()" style="font-size:12px;padding:7px 10px;border:1.5px solid var(--rule);border-radius:var(--r-sm);">
+        <option value="">カラー: すべて</option>
+      </select>
+      <select id="prodSizeFilter" onchange="renderProducts()" style="font-size:12px;padding:7px 10px;border:1.5px solid var(--rule);border-radius:var(--r-sm);">
+        <option value="">サイズ: すべて</option>
+      </select>
+      <select id="prodStockFilter" onchange="renderProducts()" style="font-size:12px;padding:7px 10px;border:1.5px solid var(--rule);border-radius:var(--r-sm);">
+        <option value="">在庫: すべて</option>
+        <option value="ok">在庫あり</option>
+        <option value="low">在庫少（10点以下）</option>
+        <option value="out">在庫切れ</option>
+      </select>
+      <div class="spacer"></div>
+      <button id="janToggleBtn" class="btn btn-ghost btn-sm" onclick="toggleJanVisibility()" title="JANコード表示切替" style="font-size:13px">👁 JAN</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportProductsCsv()" title="現在の表示内容をCSVでダウンロード">📥 CSV出力</button>
+      <!-- 店舗表示切替 -->
+      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);margin-right:4px;">表示店舗：</span>
+        <label class="ch-toggle" data-ch="warehouse"><input type="checkbox" checked onchange="renderProducts()">倉庫</label>
+        <label class="ch-toggle" data-ch="shopify"><input type="checkbox" checked onchange="renderProducts()">オンライン</label>
+        <label class="ch-toggle" data-ch="daikanyama"><input type="checkbox" checked onchange="renderProducts()">代官山</label>
+        <label class="ch-toggle" data-ch="nagoya"><input type="checkbox" checked onchange="renderProducts()">名古屋</label>
+        <label class="ch-toggle" data-ch="kobe"><input type="checkbox" checked onchange="renderProducts()">神戸</label>
+        <label class="ch-toggle" data-ch="bazar"><input type="checkbox" onchange="renderProducts()">bazar</label>
+        <label class="ch-toggle" data-ch="linegift"><input type="checkbox" onchange="renderProducts()">LINEギフト</label>
+        <label class="ch-toggle" data-ch="zozo"><input type="checkbox" checked onchange="renderProducts()">ZOZO</label>
+        <label class="ch-toggle" data-ch="amazon"><input type="checkbox" onchange="renderProducts()">Amazon</label>
+        <label class="ch-toggle" data-ch="rakuten"><input type="checkbox" onchange="renderProducts()">楽天</label>
+      </div>
+    </div>
+
+    <!-- 取込ガイド（データなし時） -->
+    <div id="prodImportHint" style="display:none;padding:20px 24px;background:var(--mint-dim);border-bottom:1px solid var(--rule);">
+      <div style="font-size:13px;font-weight:700;color:var(--mint);margin-bottom:6px;">📂 まずスマレジCSVを取り込んでください</div>
+      <div style="font-size:12px;color:var(--ink2);margin-bottom:10px;">CSVに「品番・商品名・カラー・サイズ・価格・各店舗在庫」列が含まれている場合、自動で読み込まれます。</div>
+      <button class="btn btn-mint btn-sm" onclick="goPage('overview');setTimeout(openSmaregiCsvModal,200)">📥 スマレジCSVを取込む</button>
+    </div>
+
+    <div class="tbl-wrap" id="prodTableWrap">
+      <table id="prodTable">
+        <thead>
+          <tr id="prodTableHead"></tr>
+        </thead>
+        <tbody id="prodTableBody"></tbody>
+      </table>
+      <div id="prodEmpty" class="empty" style="display:none">
+        <div class="empty-icon">📭</div>
+        <div class="empty-title">商品が見つかりません</div>
+        <p style="font-size:12px;color:var(--muted);margin-top:4px">検索条件を変更するか、CSVを取り込んでください</p>
+        <button class="btn btn-ghost btn-sm" onclick="resetAllFilters()" style="margin-top:12px">🔄 フィルターをすべてリセット</button>
+      </div>
+    </div>
+
+    <!-- Footer: 件数表示 -->
+    <div id="prodFooter" style="padding:10px 20px;border-top:1px solid var(--rule);background:var(--surface2);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;">
+      <span id="prodCount">0件</span>
+      <span id="prodTotalStock" style="font-family:'DM Mono',monospace;font-weight:700;color:var(--ink)"></span>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════ PAGE: RESERVE ══════════════ -->
+<div class="page" id="page-reserve">
+<div class="container">
+  <div class="section-title">🎫 予約管理</div>
+  <div class="section-sub">ZOZO・楽天の予約商品一覧（CSVから自動取込）</div>
+
+  <div class="card">
+    <div class="toolbar" style="flex-wrap:wrap;gap:8px;">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="商品名・品番で検索..." id="reserveSearch" oninput="renderReserves()" style="width:220px;">
+      </div>
+      <select id="reserveChannelFilter" onchange="renderReserves()" style="font-size:12px;padding:7px 10px;border:1.5px solid var(--rule);border-radius:var(--r-sm);">
+        <option value="">チャネル: すべて</option>
+        <option value="ZOZO">ZOZO</option>
+        <option value="楽天">楽天</option>
+      </select>
+      <select id="reserveDeliveryFilter" onchange="renderReserves()" style="font-size:12px;padding:7px 10px;border:1.5px solid var(--rule);border-radius:var(--r-sm);">
+        <option value="">お届け予定: すべて</option>
+      </select>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-sm" onclick="exportReserveCsv()">📥 CSV出力</button>
+    </div>
+
+    <div class="tbl-wrap" id="reserveTableWrap">
+      <table id="reserveTable">
+        <thead>
+          <tr>
+            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">品番</th>
+            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">商品名</th>
+            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">カラー</th>
+            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">サイズ</th>
+            <th colspan="3" style="padding:10px 12px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);background:#f5f5ff;border-left:2px solid var(--rule)">👗 ZOZO</th>
+            <th colspan="3" style="padding:10px 12px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);background:#fff5f5;border-left:2px solid var(--rule)">🛒 楽天</th>
+            <th style="padding:10px 12px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);border-left:2px solid var(--rule);position:relative">
+              <span style="display:inline-flex;align-items:center;gap:3px;justify-content:flex-end">
+                合計受注数
+                <span id="reserveOrderFilterDot" style="display:none;color:var(--amber);font-size:10px">●</span>
+                <span onclick="toggleReserveOrderFilter(event)" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;background:var(--rule);font-size:9px;cursor:pointer;margin-left:2px" title="絞り込み">▾</span>
+              </span>
+              <div id="reserveOrderFilterMenu" class="stock-filter-menu" style="display:none;position:absolute;right:0;z-index:100;background:white;border:1.5px solid var(--rule);border-radius:var(--r-sm);box-shadow:var(--sh-lg);margin-top:4px;min-width:120px;text-align:left">
+                <div onclick="setReserveOrderFilter('all')"     id="rof_all"     style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;color:var(--mint);background:var(--mint-dim)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=reserveOrderFilter==='all'?'var(--mint-dim)':'white'">✓ すべて表示</div>
+                <div onclick="setReserveOrderFilter('zero')"    id="rof_zero"    style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=reserveOrderFilter==='zero'?'var(--mint-dim)':'white'">　0のみ表示</div>
+                <div onclick="setReserveOrderFilter('nonzero')" id="rof_nonzero" style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=reserveOrderFilter==='nonzero'?'var(--mint-dim)':'white'">　1以上のみ</div>
+              </div>
+            </th>
+            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">お届け予定日</th>
+          </tr>
+          <tr>
+            <th colspan="4" style="padding:4px 12px;background:var(--surface2);border-bottom:1px solid var(--rule)"></th>
+            <th style="padding:6px 12px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#f5f5ff;border-left:2px solid var(--rule)">受付数</th>
+            <th style="padding:6px 12px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#f5f5ff">受注数</th>
+            <th style="padding:6px 12px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#f5f5ff">残枠</th>
+            <th style="padding:6px 12px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#fff5f5;border-left:2px solid var(--rule)">受付数</th>
+            <th style="padding:6px 12px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#fff5f5">受注数</th>
+            <th style="padding:6px 12px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#fff5f5">残枠</th>
+            <th style="padding:6px 12px;background:var(--surface2);border-left:2px solid var(--rule)"></th>
+            <th style="padding:6px 12px;background:var(--surface2)"></th>
+          </tr>
+        </thead>
+        <tbody id="reserveTableBody"></tbody>
+      </table>
+      <div id="reserveEmpty" class="empty" style="display:none">
+        <div class="empty-icon">🎫</div>
+        <div class="empty-title">予約データなし</div>
+        <p style="font-size:12px;color:var(--muted);margin-top:4px">クラウド同期するとZOZO・楽天の予約データが表示されます</p>
+      </div>
+    </div>
+
+    <div style="padding:10px 20px;border-top:1px solid var(--rule);background:var(--surface2);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;">
+      <span id="reserveCount">0件</span>
+      <span id="reserveTotalOrder" style="font-family:'DM Mono',monospace;font-weight:700;color:var(--ink)"></span>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════ PAGE: TRANSIT ══════════════ -->
+<div class="page" id="page-transit">
+<div class="container">
+  <div class="section-title">🚢 工場出荷</div>
+  <div class="section-sub">工場から日本へ輸送中の商品一覧。入荷したらフォルダからCSVを削除すると自動で消えます。</div>
+
+  <!-- 運用フロー説明 -->
+  <div class="alert-strip mint" style="margin-bottom:20px;">
+    <span>📂</span>
+    <span>Driveの「出荷済み」フォルダにCSVを入れて同期 → 一覧に表示。入荷後はフォルダからCSVを削除 → 次の同期で消えます。</span>
+  </div>
+
+  <!-- 出荷中サマリー -->
+  <div id="shipmentKpiGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;"></div>
+
+  <div class="card">
+    <div class="toolbar" style="flex-wrap:wrap;gap:8px;">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="品番・商品名で検索..." id="shipmentSearch" oninput="renderShipments()" style="width:220px;">
+      </div>
+      <select id="shipmentFactoryFilter" onchange="renderShipments()" style="font-size:12px;padding:7px 10px;border:1.5px solid var(--rule);border-radius:var(--r-sm);">
+        <option value="">工場: すべて</option>
+      </select>
+      <select id="shipmentTransportFilter" onchange="renderShipments()" style="font-size:12px;padding:7px 10px;border:1.5px solid var(--rule);border-radius:var(--r-sm);">
+        <option value="">輸送: すべて</option>
+        <option value="エアー">✈️ エアー</option>
+        <option value="船">🚢 船</option>
+      </select>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-sm" onclick="exportShipmentsCsv()">📥 CSV出力</button>
+    </div>
+
+    <div class="tbl-wrap">
+      <table id="shipmentTable">
+        <thead>
+          <tr>
+            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);white-space:nowrap">品番</th>
+            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">商品名</th>
+            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">カラー</th>
+            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">サイズ</th>
+            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);text-align:right">出荷数</th>
+            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);text-align:right">自社在庫</th>
+            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);text-align:right">ZOZO</th>
+            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);text-align:right">楽天</th>
+            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);text-align:right">Amazon</th>
+            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">出荷日</th>
+            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">輸送</th>
+            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">工場</th>
+          </tr>
+        </thead>
+        <tbody id="shipmentTableBody"></tbody>
+      </table>
+      <div id="shipmentEmpty" class="empty" style="display:none">
+        <div class="empty-icon">🚢</div>
+        <div class="empty-title">輸送中の商品なし</div>
+        <p style="font-size:12px;color:var(--muted);margin-top:4px">「出荷済み」フォルダにCSVを入れて同期してください</p>
+      </div>
+    </div>
+
+    <div style="padding:10px 20px;border-top:1px solid var(--rule);background:var(--surface2);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;">
+      <span id="shipmentCount">0件</span>
+      <span id="shipmentTotalQty" style="font-family:'DM Mono',monospace;font-weight:700;color:var(--ink)"></span>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════ PAGE: FORECAST ══════════════ -->
+<div class="page" id="page-forecast">
+<div class="container">
+  <div class="section-title">📈 発注予測</div>
+  <div class="section-sub">過去の販売実績CSVから売れ筋を分析・シーズン補正をかけて発注優先度を算出</div>
+
+  <!-- UPLOAD AREA -->
+  <div class="card">
+    <div class="card-head"><div class="card-head-title">📂 販売実績CSVを取り込む</div></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px;">CSVフォーマット（スマレジ出力）</div>
+          <div style="background:var(--ink);color:#a8ff78;font-family:'DM Mono',monospace;font-size:11px;padding:12px;border-radius:var(--r-sm);line-height:1.8;">
+            SKUコード, 商品名, カテゴリ,<br>
+            販売数(先月), 販売数(先々月),<br>
+            販売数(3ヶ月前), 現在在庫数
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px;">または手動でサンプルデータを使用</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">実際のCSVがなくてもサンプルデータで機能を確認できます</div>
+          <button class="btn btn-mint" onclick="loadSampleForecast()">🎯 サンプルデータで予測を見る</button>
+        </div>
+      </div>
+      <div class="upload-zone" id="csvDropZone" onclick="document.getElementById('csvFileInput').click()">
+        <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="handleCsvUpload(event)">
+        <div class="upload-icon">📤</div>
+        <div class="upload-title">CSVファイルをドロップ、またはクリック</div>
+        <div class="upload-sub">スマレジからエクスポートした販売実績CSVに対応</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEASON SETTINGS -->
+  <div class="card">
+    <div class="card-head"><div class="card-head-title">🌸 シーズン補正設定</div></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+        <div class="fg" style="margin:0">
+          <label>春（3〜5月）補正</label>
+          <select id="season-spring">
+            <option value="1.3">×1.3（強気）</option>
+            <option value="1.1" selected>×1.1（普通）</option>
+            <option value="0.9">×0.9（控えめ）</option>
+          </select>
+        </div>
+        <div class="fg" style="margin:0">
+          <label>夏（6〜8月）補正</label>
+          <select id="season-summer">
+            <option value="1.5">×1.5（強気）</option>
+            <option value="1.2" selected>×1.2（普通）</option>
+            <option value="1.0">×1.0（控えめ）</option>
+          </select>
+        </div>
+        <div class="fg" style="margin:0">
+          <label>秋（9〜11月）補正</label>
+          <select id="season-autumn">
+            <option value="1.3">×1.3（強気）</option>
+            <option value="1.1" selected>×1.1（普通）</option>
+            <option value="0.9">×0.9（控えめ）</option>
+          </select>
+        </div>
+        <div class="fg" style="margin:0">
+          <label>冬（12〜2月）補正</label>
+          <select id="season-winter">
+            <option value="1.4">×1.4（強気）</option>
+            <option value="1.2" selected>×1.2（普通）</option>
+            <option value="1.0">×1.0（控えめ）</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div class="fg" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <label style="white-space:nowrap;margin:0;">安全在庫（日数）</label>
+          <input type="number" id="safetyDays" value="30" style="width:80px;" min="7" max="90">
+        </div>
+        <div class="fg" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <label style="white-space:nowrap;margin:0;">リードタイム（日数）</label>
+          <input type="number" id="leadDays" value="90" style="width:80px;" min="30" max="180">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="runForecast()">📊 予測を再計算</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="card" id="forecastResultCard" style="display:none">
+    <div class="card-head">
+      <div class="card-head-title">🎯 発注優先度ランキング</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="exportForecastCsv()">📥 CSV出力</button>
+        <select id="forecastFilter" onchange="renderForecast()" style="font-size:11px;padding:5px 8px;border:1.5px solid var(--rule);border-radius:var(--r-sm)">
+          <option value="">すべて表示</option>
+          <option value="urgent">🔴 緊急</option>
+          <option value="soon">🟡 早急</option>
+          <option value="ok">🟢 余裕あり</option>
+        </select>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>商品</th>
+            <th class="text-right">月平均販売</th>
+            <th class="text-right">予測販売（来月）</th>
+            <th class="text-right">現在庫</th>
+            <th class="text-right">在庫切れまで</th>
+            <th>発注優先度</th>
+            <th class="text-right">推奨発注数</th>
+            <th class="text-center">工場発注へ</th>
+          </tr>
+        </thead>
+        <tbody id="forecastTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════ PAGE: ORDER ══════════════ -->
+<div class="page" id="page-order">
+<div class="container">
+  <div class="section-title">🏭 工場発注スケジュール</div>
+  <div class="section-sub">発注依頼の管理・リードタイム追跡・納期管理</div>
+
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi blue">
+      <div class="kpi-icon">📋</div>
+      <div class="kpi-label">発注中</div>
+      <div class="kpi-value blue" id="orderKpiActive">0</div>
+      <div class="kpi-sub">件</div>
+    </div>
+    <div class="kpi amber">
+      <div class="kpi-icon">⏰</div>
+      <div class="kpi-label">納期30日以内</div>
+      <div class="kpi-value amber" id="orderKpiSoon">0</div>
+      <div class="kpi-sub">件</div>
+    </div>
+    <div class="kpi coral">
+      <div class="kpi-icon">🚨</div>
+      <div class="kpi-label">遅延リスク</div>
+      <div class="kpi-value coral" id="orderKpiLate">0</div>
+      <div class="kpi-sub">件</div>
+    </div>
+    <div class="kpi mint">
+      <div class="kpi-icon">✅</div>
+      <div class="kpi-label">入荷済み（今月）</div>
+      <div class="kpi-value mint" id="orderKpiDone">0</div>
+      <div class="kpi-sub">件</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="SKU・商品名・工場名..." id="orderSearch" oninput="renderOrders()">
+      </div>
+      <select id="orderStatusFilter" onchange="renderOrders()">
+        <option value="">すべてのステータス</option>
+        <option value="draft">下書き</option>
+        <option value="ordered">発注済み</option>
+        <option value="production">生産中</option>
+        <option value="shipped">出荷済み</option>
+        <option value="received">入荷済み</option>
+      </select>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" onclick="openOrderModal()">＋ 発注を追加</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU / 商品名</th>
+            <th>工場名</th>
+            <th class="text-right">発注数量</th>
+            <th>発注日</th>
+            <th>納期</th>
+            <th>残日数</th>
+            <th>ステータス</th>
+            <th>進捗</th>
+            <th class="text-center">操作</th>
+          </tr>
+        </thead>
+        <tbody id="orderTable"></tbody>
+      </table>
+      <div id="orderEmpty" class="empty" style="display:none">
+        <div class="empty-icon">🏭</div>
+        <div class="empty-title">発注データなし</div>
+        <p style="font-size:12px;color:var(--muted);margin-top:4px">「＋ 発注を追加」から登録してください</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- GANTT-STYLE TIMELINE -->
+  <div class="card">
+    <div class="card-head"><div class="card-head-title">📅 納期タイムライン（今後90日）</div></div>
+    <div class="card-body" id="timelineArea" style="overflow-x:auto;"></div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════ MODALS ══════════ -->
+
+<!-- Transit Modal -->
+<div class="overlay" id="transitModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="transitModalTitle">在庫移動を登録</div>
+      <button class="modal-close" onclick="closeModal('transitModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="fg"><label>SKUコード <span class="req">*</span></label><input type="text" id="tSku" placeholder="例：KD-2024-001-90"></div>
+        <div class="fg"><label>商品名 <span class="req">*</span></label><input type="text" id="tName" placeholder="例：フラワープリントワンピース 90cm"></div>
+      </div>
+      <div class="form-row">
+        <div class="fg"><label>移動元 <span class="req">*</span></label>
+          <select id="tFrom">
+            <option value="warehouse">倉庫</option>
+            <option value="store">店舗</option>
+            <option value="shopify">Shopify倉庫</option>
+            <option value="zozo">ZOZO</option>
+            <option value="rakuten">楽天</option>
+            <option value="amazon">Amazon</option>
+          </select>
+        </div>
+        <div class="fg"><label>移動先 <span class="req">*</span></label>
+          <select id="tTo">
+            <option value="zozo">ZOZO</option>
+            <option value="rakuten">楽天</option>
+            <option value="amazon">Amazon</option>
+            <option value="store">店舗</option>
+            <option value="warehouse">倉庫</option>
+            <option value="shopify">Shopify倉庫</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row3">
+        <div class="fg"><label>数量 <span class="req">*</span></label><input type="number" id="tQty" min="1" placeholder="例：10"></div>
+        <div class="fg"><label>移動指示日 <span class="req">*</span></label><input type="date" id="tDate"></div>
+        <div class="fg"><label>予定着荷日</label><input type="date" id="tArrival"></div>
+      </div>
+      <div class="fg"><label>ステータス</label>
+        <select id="tStatus">
+          <option value="pending">移動指示済み</option>
+          <option value="moving">移動中</option>
+          <option value="arrived">着荷確認済み</option>
+        </select>
+      </div>
+      <div class="fg"><label>備考</label><input type="text" id="tNote" placeholder="例：ZOZOセール向け補充"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('transitModal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveTransit()">💾 登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Order Modal -->
+<div class="overlay" id="orderModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="orderModalTitle">発注を追加</div>
+      <button class="modal-close" onclick="closeModal('orderModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="fg"><label>SKUコード</label><input type="text" id="oSku" placeholder="例：KD-2024-001-90"></div>
+        <div class="fg"><label>商品名 <span class="req">*</span></label><input type="text" id="oName" placeholder="例：フラワープリントワンピース 90cm"></div>
+      </div>
+      <div class="form-row">
+        <div class="fg"><label>工場名 <span class="req">*</span></label><input type="text" id="oFactory" placeholder="例：上海ファクトリーA"></div>
+        <div class="fg"><label>担当者</label><input type="text" id="oContact" placeholder="例：田中太郎"></div>
+      </div>
+      <div class="form-row3">
+        <div class="fg"><label>発注数量 <span class="req">*</span></label><input type="number" id="oQty" min="1" placeholder="例：500"></div>
+        <div class="fg"><label>単価（円）</label><input type="number" id="oPrice" min="0" placeholder="例：800"></div>
+        <div class="fg"><label>カラー / サイズ</label><input type="text" id="oVariant" placeholder="例：ピンク/90cm"></div>
+      </div>
+      <div class="form-row">
+        <div class="fg"><label>発注日 <span class="req">*</span></label><input type="date" id="oOrderDate"></div>
+        <div class="fg"><label>納期 <span class="req">*</span></label><input type="date" id="oDeadline"></div>
+      </div>
+      <div class="fg"><label>ステータス</label>
+        <select id="oStatus">
+          <option value="draft">下書き</option>
+          <option value="ordered" selected>発注済み</option>
+          <option value="production">生産中</option>
+          <option value="shipped">出荷済み</option>
+          <option value="received">入荷済み</option>
+        </select>
+      </div>
+      <div class="fg"><label>メモ</label><textarea id="oNote" rows="2" placeholder="例：春夏コレクション第1弾、ZOZOセール向け優先"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('orderModal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveOrder()">💾 登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Smaregi CSV Import Modal -->
+<div class="overlay" id="smaregiCsvModal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-head">
+      <div class="modal-title">🟢 スマレジ 商品一覧CSV 取込</div>
+      <button class="modal-close" onclick="closeModal('smaregiCsvModal')">×</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- STEP indicator -->
+      <div style="display:flex;gap:0;margin-bottom:20px;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--rule);">
+        <div id="smStep1" style="flex:1;padding:10px;text-align:center;font-size:11px;font-weight:700;background:var(--mint);color:white;">① CSVを選択</div>
+        <div id="smStep2" style="flex:1;padding:10px;text-align:center;font-size:11px;font-weight:700;background:var(--surface2);color:var(--muted);">② 列マッピング</div>
+        <div id="smStep3" style="flex:1;padding:10px;text-align:center;font-size:11px;font-weight:700;background:var(--surface2);color:var(--muted);">③ 確認・取込</div>
+      </div>
+
+      <!-- STEP 1: File upload -->
+      <div id="smPane1">
+        <div style="font-size:12px;font-weight:700;margin-bottom:10px;">スマレジからCSVをダウンロードする手順：</div>
+        <div style="background:var(--surface2);border-radius:var(--r-sm);padding:14px;margin-bottom:16px;font-size:12px;line-height:2;">
+          <div>① スマレジ管理画面 →「商品」→「商品一覧」</div>
+          <div>②「CSVダウンロード」をクリック</div>
+          <div>③ CSVダウンロード設定で以下の列を有効にしてください：</div>
+          <div style="margin-left:16px;font-family:'DM Mono',monospace;font-size:11px;color:var(--blue)">
+            商品コード / 商品名 / 在庫 / 店舗別在庫（倉庫・店舗ごと）
+          </div>
+        </div>
+        <div class="upload-zone" id="smDropZone" onclick="document.getElementById('smCsvFileInput').click()">
+          <input type="file" id="smCsvFileInput" accept=".csv" style="display:none" onchange="handleSmaregiCsv(event)">
+          <div class="upload-icon">📤</div>
+          <div class="upload-title">CSVファイルをここにドロップ</div>
+          <div class="upload-sub">またはクリックしてファイルを選択</div>
+        </div>
+        <div style="margin-top:12px;text-align:center;">
+          <button class="btn btn-ghost btn-sm" onclick="loadSmaregiSample()">🎯 サンプルデータで試す</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Column mapping -->
+      <div id="smPane2" style="display:none">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">CSVの列とシステムの項目を対応付けしてください。スマレジ標準フォーマットは自動検出されます。</div>
+        <div id="smMappingArea"></div>
+      </div>
+
+      <!-- STEP 3: Preview & confirm -->
+      <div id="smPane3" style="display:none">
+        <div id="smPreviewSummary" style="margin-bottom:16px;"></div>
+        <div style="max-height:280px;overflow-y:auto;border:1px solid var(--rule);border-radius:var(--r-sm);">
+          <table style="width:100%;border-collapse:collapse">
+            <thead style="position:sticky;top:0;background:var(--surface2);">
+              <tr>
+                <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">商品コード</th>
+                <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">商品名</th>
+                <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">倉庫</th>
+                <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">店舗</th>
+                <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">オンライン</th>
+              </tr>
+            </thead>
+            <tbody id="smPreviewTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="smPrev()" id="smBtnPrev" style="display:none">← 戻る</button>
+      <button class="btn btn-ghost" onclick="closeModal('smaregiCsvModal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="smNext()" id="smBtnNext">次へ →</button>
+      <button class="btn btn-mint" onclick="smImport()" id="smBtnImport" style="display:none">✅ 取込実行</button>
+    </div>
+  </div>
+</div>
+
+<!-- Smaregi Guide Modal -->
+<div class="overlay" id="smGuideModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-head">
+      <div class="modal-title">📖 スマレジCSV出力 手順ガイド</div>
+      <button class="modal-close" onclick="closeModal('smGuideModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--mint);color:white;display:grid;place-items:center;font-weight:700;font-size:13px;flex-shrink:0;">1</div>
+          <div><div style="font-weight:700;margin-bottom:3px;">管理画面にログイン</div><div style="font-size:12px;color:var(--muted)">スマレジ管理画面（admin.smaregi.jp）にアクセス</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--mint);color:white;display:grid;place-items:center;font-weight:700;font-size:13px;flex-shrink:0;">2</div>
+          <div><div style="font-weight:700;margin-bottom:3px;">商品一覧を開く</div><div style="font-size:12px;color:var(--muted)">左メニュー「商品」→「商品一覧」をクリック</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--mint);color:white;display:grid;place-items:center;font-weight:700;font-size:13px;flex-shrink:0;">3</div>
+          <div><div style="font-weight:700;margin-bottom:3px;">CSVダウンロード設定</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.8;">「CSVダウンロード」→「CSVダウンロード設定」をクリック<br>以下の項目を「CSV出力する項目」に追加：<br>
+            <span style="font-family:'DM Mono',monospace;background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:11px;">商品コード・商品名・在庫・品番</span></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--mint);color:white;display:grid;place-items:center;font-weight:700;font-size:13px;flex-shrink:0;">4</div>
+          <div><div style="font-weight:700;margin-bottom:3px;">ダウンロード実行</div><div style="font-size:12px;color:var(--muted)">「登録」→「CSVダウンロード」でファイルを保存</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--blue);color:white;display:grid;place-items:center;font-weight:700;font-size:13px;flex-shrink:0;">5</div>
+          <div><div style="font-weight:700;margin-bottom:3px;">このツールに取込</div><div style="font-size:12px;color:var(--muted)">「スマレジCSV取込」ボタンからダウンロードしたファイルを選択</div></div>
+        </div>
+      </div>
+      <div style="margin-top:16px;background:var(--amber-dim);border:1px solid #f7d8a0;border-radius:var(--r-sm);padding:12px;font-size:12px;color:#7a4f00;">
+        ⚠️ <strong>注意：</strong>スマレジの在庫数には在途在庫（移動中）は含まれません。在途在庫はこのツールの「在途在庫」タブで別途管理してください。
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('smGuideModal')">閉じる</button>
+      <button class="btn btn-mint" onclick="closeModal('smGuideModal');openSmaregiCsvModal()">📥 CSV取込を開く</button>
+    </div>
+  </div>
+</div>
+
+<!-- External Channel CSV Import Modal -->
+<div class="overlay" id="externalCsvModal">
+  <div class="modal" style="max-width:660px">
+    <div class="modal-head">
+      <div class="modal-title" id="extCsvTitle">CSVを取込</div>
+      <button class="modal-close" onclick="closeModal('externalCsvModal')">×</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Channel guide tabs -->
+      <div id="extGuideArea" style="margin-bottom:16px;"></div>
+
+      <!-- Step indicator -->
+      <div style="display:flex;gap:0;margin-bottom:16px;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--rule);">
+        <div id="extStep1" style="flex:1;padding:9px;text-align:center;font-size:11px;font-weight:700;background:var(--blue);color:white;">① CSVを選択</div>
+        <div id="extStep2" style="flex:1;padding:9px;text-align:center;font-size:11px;font-weight:700;background:var(--surface2);color:var(--muted);">② 列を確認</div>
+        <div id="extStep3" style="flex:1;padding:9px;text-align:center;font-size:11px;font-weight:700;background:var(--surface2);color:var(--muted);">③ 確認・取込</div>
+      </div>
+
+      <!-- Pane 1: Upload -->
+      <div id="extPane1">
+        <div id="extFormatHint" style="background:var(--ink);color:#a8ff78;font-family:'DM Mono',monospace;font-size:11px;padding:12px;border-radius:var(--r-sm);line-height:2;margin-bottom:14px;"></div>
+        <div class="upload-zone" id="extDropZone" onclick="document.getElementById('extCsvFileInput').click()">
+          <input type="file" id="extCsvFileInput" accept=".csv,.txt" style="display:none" onchange="handleExtCsv(event)">
+          <div class="upload-icon">📤</div>
+          <div class="upload-title" id="extDropTitle">CSVファイルをドロップ、またはクリック</div>
+          <div class="upload-sub" id="extDropSub">各サイト管理画面からダウンロードしたファイル（CSV・TXT）に対応</div>
+        </div>
+        <div style="margin-top:12px;text-align:center;">
+          <button class="btn btn-ghost btn-sm" onclick="loadExtSample()">🎯 サンプルデータで試す</button>
+        </div>
+      </div>
+
+      <!-- Pane 2: Mapping -->
+      <div id="extPane2" style="display:none">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">CSVの列とシステムの項目を対応付けしてください。各サイトの標準フォーマットは自動検出されます。</div>
+        <div id="extMappingArea"></div>
+      </div>
+
+      <!-- Pane 3: Preview -->
+      <div id="extPane3" style="display:none">
+        <div id="extPreviewSummary" style="margin-bottom:12px;"></div>
+        <div style="max-height:260px;overflow-y:auto;border:1px solid var(--rule);border-radius:var(--r-sm);">
+          <table style="width:100%;border-collapse:collapse">
+            <thead style="position:sticky;top:0;background:var(--surface2);">
+              <tr>
+                <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted)">SKU / 管理番号</th>
+                <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted)">商品名</th>
+                <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted)">在庫数</th>
+              </tr>
+            </thead>
+            <tbody id="extPreviewTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="extPrev()" id="extBtnPrev" style="display:none">← 戻る</button>
+      <button class="btn btn-ghost" onclick="closeModal('externalCsvModal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="extNext()" id="extBtnNext">次へ →</button>
+      <button class="btn btn-blue" onclick="extImport()" id="extBtnImport" style="display:none;background:var(--blue);color:white;padding:8px 16px;border-radius:var(--r-sm);font-size:12px;font-weight:700;cursor:pointer;border:none;font-family:'Noto Sans JP',sans-serif;">✅ 取込実行</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// GAS接続設定（起動時に最初に定義）
+let GAS_URL      = localStorage.getItem('gas_url') || '';
+let GAS_UPLOADER = localStorage.getItem('gas_uploader') || '';
+let GAS_ENABLED  = !!GAS_URL;
+
+// ════════════════════════════════
+// STATE
+// ════════════════════════════════
+// localStorage読み込みを安全に行う
+function safeGetItem(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch(e) {
+    localStorage.removeItem(key); // 壊れたデータを削除
+    return fallback;
+  }
+}
+const S = {
+  transit:  safeGetItem('hub_transit', []),
+  orders:   safeGetItem('hub_orders', []),
+  channels: safeGetItem('hub_channels', {warehouse:0,shopify:0,daikanyama:0,nagoya:0,kobe:0,bazar:0,linegift:0,zozo:0,amazon:0,rakuten:0}),
+  forecast: [],
+  reserves: [],
+  shipments: [],
+  editTransitId: null,
+  editOrderId: null,
+  csvTarget: null,
+};
+let nextTid = Math.max(0,...S.transit.map(x=>x.id||0))+1;
+let nextOid = Math.max(0,...S.orders.map(x=>x.id||0))+1;
+
+function save(){
+  localStorage.setItem('hub_transit', JSON.stringify(S.transit));
+  localStorage.setItem('hub_orders', JSON.stringify(S.orders));
+  localStorage.setItem('hub_channels', JSON.stringify(S.channels));
+}
+
+// ════════════════════════════════
+// NAV / DATE
+// ════════════════════════════════
+const PAGES = ['overview','products','reserve','transit','forecast','order'];
+function goPage(id){
+  PAGES.forEach(p=>{
+    document.getElementById('page-'+p).classList.toggle('active', p===id);
+    document.querySelectorAll('.nav-tab').forEach((t,i)=>t.classList.toggle('active', PAGES[i]===id));
+  });
+  if(id==='overview') refreshOverview();
+  if(id==='products') renderProducts();
+  if(id==='reserve')  renderReserves();
+  if(id==='transit') renderShipments();
+  if(id==='order'){renderOrders();renderTimeline();}
+}
+(()=>{
+  const d=new Date();
+  document.getElementById('navDate').textContent=d.toLocaleDateString('ja-JP',{year:'numeric',month:'short',day:'numeric',weekday:'short'});
+})();
+
+// ════════════════════════════════
+// OVERVIEW
+// ════════════════════════════════
+function refreshOverview(){
+  // KPI
+  const inTransit = S.transit ? S.transit.filter(t=>t.status!=='arrived').length : 0;
+  const kpiTransitEl = document.getElementById('kpiTransit');
+  if (kpiTransitEl) kpiTransitEl.textContent = inTransit;
+  document.getElementById('kpiOrdering').textContent = S.orders.filter(o=>['ordered','production','shipped'].includes(o.status)).length;
+  const urgentForecast = S.forecast.filter(f=>f.priority==='urgent').length;
+  document.getElementById('kpiForecastAlert').textContent = urgentForecast;
+
+  // 総SKU数
+  const skuCount = S.products ? S.products.length : 0;
+  document.getElementById('kpiSku').textContent = skuCount > 0 ? skuCount.toLocaleString() : '—';
+
+  // 全チャネル合計在庫金額（スマレジ金額列の合計 + ZOZO/Amazon/楽天は点数×単価）
+  if (S.products && S.products.length > 0) {
+    const smaregiKeys = ['warehouse','shopify','daikanyama','nagoya','kobe','bazar','linegift'];
+    const extKeys     = ['zozo','amazon','rakuten'];
+    const total = S.products.reduce((sum, p) => {
+      const smAmt = smaregiKeys.reduce((s, k) => s + (Number(p[k+'_amount']) || 0), 0);
+      const extAmt = extKeys.reduce((s, k) => s + (Number(p[k])||0) * (Number(p.price)||0), 0);
+      return sum + smAmt + extAmt;
+    }, 0);
+    const el = document.getElementById('kpiTotalAmount');
+    if (total >= 1000000) {
+      el.textContent = '¥' + (total / 1000000).toFixed(1) + 'M';
+    } else {
+      el.textContent = '¥' + Math.round(total / 10000) + '万';
+    }
+    document.getElementById('kpiTotalAmountSub').textContent = '¥' + total.toLocaleString() + '（税抜）';
+  } else {
+    document.getElementById('kpiTotalAmount').textContent = '—';
+    document.getElementById('kpiTotalAmountSub').textContent = 'スマレジ連携値（税抜）';
+  }
+  // Channels — 在庫金額（スマレジの金額列を直接使用、税抜）
+  const chKeys = ['warehouse','shopify','daikanyama','nagoya','kobe','bazar','linegift','zozo','amazon','rakuten'];
+  const hasProducts = S.products && S.products.length > 0;
+
+  chKeys.forEach(k => {
+    const mainEl  = document.getElementById('ch-' + k);
+    const labelEl = document.getElementById('ch-' + k + '-label');
+    if (!mainEl) return;
+
+    if (hasProducts) {
+      let amount;
+      // スマレジ系チャネルは金額列を直接合算、外部チャネルは点数×単価で計算
+      const amountKey = k + '_amount';
+      const hasAmountCol = S.products.some(p => p[amountKey] !== undefined);
+      if (hasAmountCol) {
+        amount = S.products.reduce((sum, p) => sum + (Number(p[amountKey]) || 0), 0);
+      } else {
+        amount = S.products.reduce((sum, p) => sum + (Number(p[k]) || 0) * (Number(p.price) || 0), 0);
+      }
+      if (amount === 0) {
+        mainEl.textContent  = '—';
+        if (labelEl) labelEl.textContent = '';
+      } else if (amount >= 1000000) {
+        mainEl.textContent  = '¥' + (amount / 1000000).toFixed(1) + 'M';
+        if (labelEl) labelEl.textContent = '¥' + amount.toLocaleString();
+      } else {
+        mainEl.textContent  = '¥' + Math.round(amount / 10000) + '万';
+        if (labelEl) labelEl.textContent = '¥' + amount.toLocaleString();
+      }
+    } else {
+      const qty = S.channels[k];
+      mainEl.textContent  = qty ? qty.toLocaleString() : '—';
+      if (labelEl) labelEl.textContent = qty ? '点' : '';
+    }
+  });
+  // Alert strip
+  const alerts=[];
+  if(inTransit>0) alerts.push(`<div class="alert-strip amber"><span>🚚</span><span>${inTransit}件の在途在庫があります — <a class="lnk" onclick="goPage('transit')">在途在庫を確認</a></span></div>`);
+  if(urgentForecast>0) alerts.push(`<div class="alert-strip coral"><span>🚨</span><span>在庫切れ予測が<strong>${urgentForecast}SKU</strong>あります — <a class="lnk" onclick="goPage('forecast')">発注予測を見る</a></span></div>`);
+  document.getElementById('overviewAlerts').innerHTML=alerts.join('');
+  // Transit quick list
+  const active=S.transit.filter(t=>t.status!=='arrived').slice(0,5);
+  if(active.length===0){
+    document.getElementById('overviewTransitList').innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">在途中アイテムなし</div></div>';
+  } else {
+    document.getElementById('overviewTransitList').innerHTML=`<table style="width:100%"><thead><tr><th>商品名</th><th>移動フロー</th><th class="text-right">数量</th><th>ステータス</th></tr></thead><tbody>`+
+    active.map(t=>`<tr>
+      <td><div class="fw7">${t.name}</div><div style="font-size:11px;color:var(--muted)">${t.sku}</div></td>
+      <td><div class="transit-flow"><span class="transit-node node-from">${chLabel(t.from)}</span><span class="transit-arrow">→</span><span class="transit-node node-to">${chLabel(t.to)}</span></div></td>
+      <td class="text-right mono fw7">${t.qty}</td>
+      <td>${transitBadge(t.status)}</td>
+    </tr>`).join('')+'</tbody></table>';
+  }
+}
+
+function chLabel(k){const m={store:'店舗',warehouse:'倉庫',shopify:'Shopify',zozo:'ZOZO',rakuten:'楽天',amazon:'Amazon'};return m[k]||k;}
+
+// ════════════════════════════════
+// RESERVES
+// ════════════════════════════════
+// ── 予約合計受注数フィルター ──────────────────────────
+let reserveOrderFilter = 'all';
+
+function toggleReserveOrderFilter(event) {
+  event.stopPropagation();
+  const menu = document.getElementById('reserveOrderFilterMenu');
+  if (menu) menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+}
+
+function setReserveOrderFilter(mode) {
+  reserveOrderFilter = mode;
+  const menu = document.getElementById('reserveOrderFilterMenu');
+  if (menu) menu.style.display = 'none';
+  // メニュー内の選択状態を更新
+  ['all','zero','nonzero'].forEach(m => {
+    const el = document.getElementById('rof_' + m);
+    if (!el) return;
+    el.style.color = m === mode ? 'var(--mint)' : 'var(--ink)';
+    el.style.background = m === mode ? 'var(--mint-dim)' : 'white';
+    el.textContent = (m === mode ? '✓ ' : '　') + (m === 'all' ? 'すべて表示' : m === 'zero' ? '0のみ表示' : '1以上のみ');
+  });
+  // ドットの表示
+  const dot = document.getElementById('reserveOrderFilterDot');
+  if (dot) dot.style.display = mode !== 'all' ? 'inline' : 'none';
+  renderReserves();
+}
+
+function renderReserves() {
+  const search  = (document.getElementById('reserveSearch')?.value || '').toLowerCase();
+  const chF     = document.getElementById('reserveChannelFilter')?.value || '';
+  const delivF  = document.getElementById('reserveDeliveryFilter')?.value || '';
+
+  // フィルター適用
+  let filtered = (S.reserves || []).filter(r => {
+    if (search && !((r.name||'').toLowerCase().includes(search) || (r.csSku||'').toLowerCase().includes(search))) return false;
+    if (chF    && r.channel !== chF) return false;
+    if (delivF && r.deliveryDate !== delivF) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('reserveTableBody');
+  const empty = document.getElementById('reserveEmpty');
+  const tbl   = document.getElementById('reserveTable');
+
+  // お届け予定日フィルターの選択肢を更新
+  const delivSel = document.getElementById('reserveDeliveryFilter');
+  if (delivSel) {
+    const dates = [...new Set((S.reserves||[]).map(r => r.deliveryDate).filter(Boolean))].sort();
+    const cur = delivSel.value;
+    delivSel.innerHTML = '<option value="">お届け予定: すべて</option>' +
+      dates.map(d => `<option value="${d}" ${d===cur?'selected':''}>${d}</option>`).join('');
+  }
+
+  // csSku（自社品番）でグルーピング
+  const groupMap = {};
+  filtered.forEach(r => {
+    const key = r.csSku || `${r.name}__${r.color}__${r.size}`;
+    if (!groupMap[key]) groupMap[key] = {
+      csSku: r.csSku, name: r.name, color: r.color, size: r.size, zozo: null, rakuten: null
+    };
+    if (r.channel === 'ZOZO') { groupMap[key].zozo = r; groupMap[key].csSku = r.csSku; }
+    if (r.channel === '楽天') groupMap[key].rakuten = r;
+  });
+  const rows = Object.values(groupMap).filter(g => {
+    const total = (g.zozo?.orderQty||0) + (g.rakuten?.orderQty||0);
+    if (reserveOrderFilter === 'zero')    return total === 0;
+    if (reserveOrderFilter === 'nonzero') return total > 0;
+    return true;
+  });
+
+  if (rows.length === 0) {
+    empty.style.display = 'block';
+    tbl.style.display = 'none';
+    document.getElementById('reserveCount').textContent = '0件';
+    document.getElementById('reserveTotalOrder').textContent = '';
+    return;
+  }
+  empty.style.display = 'none';
+  tbl.style.display = 'table';
+
+  const tdBase = 'padding:10px 12px;border-bottom:1px solid var(--rule);';
+  const tdZozo = tdBase + 'background:rgba(124,77,255,0.03);border-left:2px solid var(--rule);text-align:right;font-family:\'DM Mono\',monospace;font-weight:600';
+  const tdRaku = tdBase + 'background:rgba(232,72,85,0.03);border-left:2px solid var(--rule);text-align:right;font-family:\'DM Mono\',monospace;font-weight:600';
+  const tdZozo2 = tdBase + 'background:rgba(124,77,255,0.03);text-align:right;font-family:\'DM Mono\',monospace;font-weight:600';
+  const tdRaku2 = tdBase + 'background:rgba(232,72,85,0.03);text-align:right;font-family:\'DM Mono\',monospace;font-weight:600';
+  const dash = '<span style="color:var(--muted)">—</span>';
+
+  tbody.innerHTML = rows.map(g => {
+    const z = g.zozo;
+    const r = g.rakuten;
+    const zRemain  = z ? z.reserveQty - z.orderQty : null;
+    const rRemain  = r ? r.reserveQty - r.orderQty : null;
+    const totalOrder = (z?.orderQty||0) + (r?.orderQty||0);
+    const zRemCls = zRemain !== null ? (zRemain <= 0 ? 'sc-out' : zRemain <= 5 ? 'sc-low' : 'sc-ok') : '';
+    const rRemCls = rRemain !== null ? (rRemain <= 0 ? 'sc-out' : rRemain <= 5 ? 'sc-low' : 'sc-ok') : '';
+    const deliveryDate = z?.deliveryDate || '';
+    return `<tr>
+      <td style="${tdBase}font-family:'DM Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap">${g.csSku||'—'}</td>
+      <td style="${tdBase}font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.name}">${g.name||'—'}</td>
+      <td style="${tdBase}">${g.color ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600">${g.color}</span>` : '—'}</td>
+      <td style="${tdBase}">${g.size ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:var(--blue-dim);color:var(--blue);font-size:11px;font-weight:700;font-family:'DM Mono',monospace">${g.size}</span>` : '—'}</td>
+      <td style="${tdZozo}">${z ? z.reserveQty.toLocaleString() : dash}</td>
+      <td style="${tdZozo2};color:var(--purple)">${z ? z.orderQty.toLocaleString() : dash}</td>
+      <td style="${tdZozo2}" class="${zRemCls}">${zRemain !== null ? zRemain.toLocaleString() : dash}</td>
+      <td style="${tdRaku}">${r ? r.reserveQty.toLocaleString() : dash}</td>
+      <td style="${tdRaku2};color:var(--coral)">${r ? r.orderQty.toLocaleString() : dash}</td>
+      <td style="${tdRaku2}" class="${rRemCls}">${rRemain !== null ? rRemain.toLocaleString() : dash}</td>
+      <td style="${tdBase}border-left:2px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--ink)">${totalOrder > 0 ? totalOrder.toLocaleString() : dash}</td>
+      <td style="${tdBase}font-size:12px;color:var(--ink2);white-space:nowrap">${deliveryDate || dash}</td>
+    </tr>`;
+  }).join('');
+
+  const totalOrder = rows.reduce((s, g) => s + (g.zozo?.orderQty||0) + (g.rakuten?.orderQty||0), 0);
+  document.getElementById('reserveCount').textContent = `${rows.length.toLocaleString()}件`;
+  document.getElementById('reserveTotalOrder').textContent = `合計受注数: ${totalOrder.toLocaleString()}件`;
+}
+
+function exportReserveCsv() {
+  if (!S.reserves || S.reserves.length === 0) {
+    toast('予約データがありません', 'warn'); return;
+  }
+  // csSku（自社品番）でグルーピング
+  const groupMap = {};
+  S.reserves.forEach(r => {
+    const key = r.csSku || `${r.name}__${r.color}__${r.size}`;
+    if (!groupMap[key]) groupMap[key] = { csSku: r.csSku, name: r.name, color: r.color, size: r.size, zozo: null, rakuten: null };
+    if (r.channel === 'ZOZO') { groupMap[key].zozo = r; groupMap[key].csSku = r.csSku; }
+    if (r.channel === '楽天') groupMap[key].rakuten = r;
+  });
+  const rows = Object.values(groupMap);
+  const headers = ['品番','商品名','カラー','サイズ','ZO受付数','ZO受注数','ZO残枠','楽受付数','楽受注数','楽残枠','合計受注数','お届け予定日'];
+  const escape = v => { const s = String(v??''); return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g,'""')}"` : s; };
+  const csvRows = rows.map(g => {
+    const z = g.zozo, r = g.rakuten;
+    return [
+      g.csSku, g.name, g.color, g.size,
+      z?.reserveQty||'', z?.orderQty||'', z ? (z.reserveQty - z.orderQty) : '',
+      r?.reserveQty||'', r?.orderQty||'', r ? (r.reserveQty - r.orderQty) : '',
+      (z?.orderQty||0) + (r?.orderQty||0),
+      z?.deliveryDate || ''
+    ].map(escape).join(',');
+  });
+  const csv = '\uFEFF' + headers.join(',') + '\n' + csvRows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const now = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `予約一覧_${now}.csv`;
+  a.click();
+  toast(`📥 ${rows.length.toLocaleString()}件をCSV出力しました`, 'success');
+}
+
+// ════════════════════════════════
+// SHIPMENTS（工場出荷）
+// ════════════════════════════════
+function renderShipments() {
+  const search    = (document.getElementById('shipmentSearch')?.value || '').toLowerCase();
+  const factoryF  = document.getElementById('shipmentFactoryFilter')?.value || '';
+  const transportF= document.getElementById('shipmentTransportFilter')?.value || '';
+
+  const data = S.shipments || [];
+
+  // 工場フィルター選択肢を更新
+  const factorySel = document.getElementById('shipmentFactoryFilter');
+  if (factorySel) {
+    const factories = [...new Set(data.map(s => s.factory).filter(Boolean))].sort();
+    const cur = factorySel.value;
+    factorySel.innerHTML = '<option value="">工場: すべて</option>' +
+      factories.map(f => `<option value="${f}" ${f===cur?'selected':''}>${f}</option>`).join('');
+  }
+
+  let rows = data.filter(s => {
+    if (search && !((s.itemNo||'').toLowerCase().includes(search) || (s.name||'').toLowerCase().includes(search))) return false;
+    if (factoryF   && s.factory   !== factoryF)   return false;
+    if (transportF && s.transport !== transportF) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('shipmentTableBody');
+  const empty = document.getElementById('shipmentEmpty');
+  const tbl   = document.getElementById('shipmentTable');
+
+  // サマリーKPI（工場別出荷数）
+  const kpiGrid = document.getElementById('shipmentKpiGrid');
+  if (kpiGrid) {
+    const factories = [...new Set(data.map(s => s.factory).filter(Boolean))];
+    const colors = ['mint','amber','blue','purple','coral'];
+    kpiGrid.innerHTML = factories.map((f, i) => {
+      const total = data.filter(s => s.factory === f).reduce((sum, s) => sum + s.qty, 0);
+      const transport = data.find(s => s.factory === f)?.transport || '';
+      const icon = transport === 'エアー' ? '✈️' : '🚢';
+      return `<div class="kpi ${colors[i%colors.length]}">
+        <div class="kpi-icon">${icon}</div>
+        <div class="kpi-label">${f}</div>
+        <div class="kpi-value ${colors[i%colors.length]}">${total.toLocaleString()}</div>
+        <div class="kpi-sub">点 輸送中</div>
+      </div>`;
+    }).join('');
+  }
+
+  if (rows.length === 0) {
+    empty.style.display = 'block';
+    tbl.style.display = 'none';
+    document.getElementById('shipmentCount').textContent = '0件';
+    document.getElementById('shipmentTotalQty').textContent = '';
+    return;
+  }
+  empty.style.display = 'none';
+  tbl.style.display = 'table';
+
+  // 品番でS.productsとマッチして在庫数を取得
+  const productMap = {};
+  (S.products || []).forEach(p => { if (p.itemNo) productMap[p.itemNo] = p; });
+
+  tbody.innerHTML = rows.map(s => {
+    const p = productMap[s.itemNo] || {};
+    const selfStock = ['warehouse','shopify','daikanyama','nagoya','kobe','bazar','linegift']
+      .reduce((sum, k) => sum + (Number(p[k])||0), 0);
+    const transportBadge = s.transport === 'エアー'
+      ? '<span class="badge badge-blue">✈️ エアー</span>'
+      : '<span class="badge badge-mint">🚢 船</span>';
+    return `<tr>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap">${s.itemNo||'—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.name}">${s.name||'—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule)">${s.color ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600">${s.color}</span>` : '—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule)">${s.size ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:var(--blue-dim);color:var(--blue);font-size:11px;font-weight:700;font-family:'DM Mono',monospace">${s.size}</span>` : '—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--amber)">${s.qty.toLocaleString()}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:600">${selfStock > 0 ? selfStock.toLocaleString() : '<span style="color:var(--muted)">—</span>'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:600">${p.zozo !== undefined ? p.zozo : '<span style="color:var(--muted)">—</span>'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:600">${p.rakuten !== undefined ? p.rakuten : '<span style="color:var(--muted)">—</span>'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:600">${p.amazon !== undefined ? p.amazon : '<span style="color:var(--muted)">—</span>'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-size:12px;white-space:nowrap">${s.shipDate||'—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule)">${transportBadge}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-size:12px;font-weight:600">${s.factory||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+  document.getElementById('shipmentCount').textContent = `${rows.length.toLocaleString()}件`;
+  document.getElementById('shipmentTotalQty').textContent = `輸送中合計: ${totalQty.toLocaleString()}点`;
+}
+
+function exportShipmentsCsv() {
+  if (!S.shipments || S.shipments.length === 0) { toast('出荷データがありません', 'warn'); return; }
+  const headers = ['品番','商品名','カラー','サイズ','出荷数','出荷日','輸送','工場'];
+  const escape = v => { const s = String(v??''); return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g,'""')}"` : s; };
+  const csvRows = S.shipments.map(s => [s.itemNo, s.name, s.color, s.size, s.qty, s.shipDate, s.transport, s.factory].map(escape).join(','));
+  const csv = '\uFEFF' + headers.join(',') + '\n' + csvRows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const now = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `工場出荷一覧_${now}.csv`; a.click();
+  toast(`📥 ${S.shipments.length.toLocaleString()}件をCSV出力しました`, 'success');
+}
+
+// ════════════════════════════════
+// TRANSIT（旧在途在庫 - 互換性維持のため残す）
+// ════════════════════════════════
+function renderTransit(){}
+function transitBadge(s){
+  const m={pending:'<span class="badge badge-blue">📋 移動指示済み</span>',moving:'<span class="badge badge-amber">🚚 移動中</span>',arrived:'<span class="badge badge-mint">✅ 着荷確認済み</span>'};
+  return m[s]||'';
+}
+function openTransitModal(id){
+  S.editTransitId = id||null;
+  const t = id ? S.transit.find(x=>x.id===id) : null;
+  document.getElementById('transitModalTitle').textContent = t ? '在庫移動を編集' : '在庫移動を登録';
+  document.getElementById('tSku').value = t?.sku||'';
+  document.getElementById('tName').value = t?.name||'';
+  document.getElementById('tFrom').value = t?.from||'warehouse';
+  document.getElementById('tTo').value = t?.to||'zozo';
+  document.getElementById('tQty').value = t?.qty||'';
+  document.getElementById('tDate').value = t?.date||new Date().toISOString().slice(0,10);
+  document.getElementById('tArrival').value = t?.arrival||'';
+  document.getElementById('tStatus').value = t?.status||'pending';
+  document.getElementById('tNote').value = t?.note||'';
+  openModal('transitModal');
+}
+function saveTransit(){
+  const name=document.getElementById('tName').value.trim();
+  const qty=parseInt(document.getElementById('tQty').value);
+  const date=document.getElementById('tDate').value;
+  if(!name||!date||isNaN(qty)||qty<1){toast('必須項目を入力してください','error');return;}
+  const obj={
+    id: S.editTransitId||nextTid++,
+    sku:document.getElementById('tSku').value.trim(),
+    name, qty, date,
+    from:document.getElementById('tFrom').value,
+    to:document.getElementById('tTo').value,
+    arrival:document.getElementById('tArrival').value,
+    status:document.getElementById('tStatus').value,
+    note:document.getElementById('tNote').value.trim(),
+  };
+  if(S.editTransitId){
+    const i=S.transit.findIndex(x=>x.id===S.editTransitId);
+    S.transit[i]=obj;
+  } else {
+    S.transit.unshift(obj);
+  }
+  save(); closeModal('transitModal'); renderTransit(); refreshOverview();
+  toast(S.editTransitId?'✏️ 更新しました':'✅ 在庫移動を登録しました','success');
+}
+function advanceTransit(id){
+  const t=S.transit.find(x=>x.id===id);
+  if(!t) return;
+  if(t.status==='pending') t.status='moving';
+  else if(t.status==='moving') t.status='arrived';
+  save(); renderTransit(); refreshOverview();
+  toast(`🚚 ステータスを「${t.status==='arrived'?'着荷確認済み':'移動中'}」に更新しました`,'success');
+}
+function deleteTransit(id){
+  S.transit=S.transit.filter(x=>x.id!==id);
+  save(); renderTransit(); refreshOverview();
+  toast('🗑️ 削除しました');
+}
+function renderTransit(){
+  // 工場出荷タブに移行したため無効化
+}
+
+// ════════════════════════════════
+// FORECAST
+// ════════════════════════════════
+function loadSampleForecast(){
+  const cats=['ワンピース','Tシャツ','パンツ','アウター','ニット'];
+  const sizes=['80cm','90cm','100cm','110cm','120cm'];
+  const colors=['ピンク','ネイビー','ホワイト','グレー','イエロー'];
+  S.forecast=[];
+  for(let i=0;i<40;i++){
+    const cat=cats[i%cats.length];
+    const s=sizes[Math.floor(i/8)%5];
+    const c=colors[i%5];
+    const base=Math.floor(Math.random()*80)+10;
+    const trend=Math.random()>0.5?1.15:0.85;
+    const avg=base;
+    const pred=Math.round(base*trend*getSeasonMult());
+    const stock=Math.floor(Math.random()*120);
+    const safetyDays=parseInt(document.getElementById('safetyDays').value)||30;
+    const leadDays=parseInt(document.getElementById('leadDays').value)||90;
+    const dailyRate=pred/30;
+    const daysLeft=dailyRate>0?Math.floor(stock/dailyRate):999;
+    const priority=daysLeft<leadDays?'urgent':daysLeft<leadDays+safetyDays?'soon':'ok';
+    const reorder=Math.max(0,Math.round(pred*(leadDays/30)+pred*(safetyDays/30)-stock));
+    S.forecast.push({
+      id:i+1,sku:`KD-${String(i+1).padStart(3,'0')}`,
+      name:`${cat} ${s} ${c}`,cat,
+      avg,pred,stock,daysLeft,priority,reorder
+    });
+  }
+  S.forecast.sort((a,b)=>a.daysLeft-b.daysLeft);
+  document.getElementById('forecastResultCard').style.display='block';
+  renderForecast();
+  document.getElementById('kpiForecastAlert').textContent=S.forecast.filter(f=>f.priority==='urgent').length;
+  toast('🎯 予測を生成しました（サンプルデータ）','success');
+}
+function getSeasonMult(){
+  const m=new Date().getMonth();
+  const sel=[
+    [document.getElementById('season-winter'),document.getElementById('season-winter'),document.getElementById('season-spring')][0],
+    [document.getElementById('season-spring'),document.getElementById('season-spring'),document.getElementById('season-spring')][0],
+    [document.getElementById('season-spring'),document.getElementById('season-spring'),document.getElementById('season-spring')][0],
+    [document.getElementById('season-spring'),document.getElementById('season-spring'),document.getElementById('season-spring')][0],
+    [document.getElementById('season-summer'),document.getElementById('season-summer'),document.getElementById('season-summer')][0],
+  ];
+  const map={0:'winter',1:'winter',2:'spring',3:'spring',4:'spring',5:'summer',6:'summer',7:'summer',8:'autumn',9:'autumn',10:'autumn',11:'winter'};
+  const sId='season-'+map[m];
+  const el=document.getElementById(sId);
+  return el?parseFloat(el.value):1.0;
+}
+function runForecast(){
+  if(S.forecast.length===0){toast('まずCSVを取り込むかサンプルデータを読み込んでください','warn');return;}
+  loadSampleForecast();
+}
+function priorityBadge(p){
+  if(p==='urgent') return '<span class="badge badge-coral">🔴 緊急</span>';
+  if(p==='soon')   return '<span class="badge badge-amber">🟡 早急</span>';
+  return '<span class="badge badge-mint">🟢 余裕あり</span>';
+}
+function renderForecast(){
+  const fFilter=document.getElementById('forecastFilter').value;
+  let rows=S.forecast;
+  if(fFilter) rows=rows.filter(f=>f.priority===fFilter);
+  document.getElementById('forecastTable').innerHTML=rows.map(f=>`<tr>
+    <td>
+      <div class="forecast-sku fw7">${f.name}</div>
+      <div class="forecast-detail mono">${f.sku}</div>
+    </td>
+    <td class="text-right mono">${f.avg}</td>
+    <td class="text-right mono fw7">${f.pred}</td>
+    <td class="text-right mono" style="color:${f.stock<20?'var(--coral)':'var(--ink)'}">${f.stock}</td>
+    <td class="text-right mono fw7" style="color:${f.daysLeft<60?'var(--coral)':f.daysLeft<90?'var(--amber)':'var(--mint)'}">${f.daysLeft===999?'∞':f.daysLeft+'日'}</td>
+    <td>${priorityBadge(f.priority)}</td>
+    <td class="text-right mono fw7" style="color:var(--blue)">${f.reorder>0?f.reorder:'—'}</td>
+    <td class="text-center">${f.reorder>0?`<button class="btn btn-ghost btn-sm" onclick="addOrderFromForecast(${f.id})">→ 発注登録</button>`:'—'}</td>
+  </tr>`).join('');
+}
+function addOrderFromForecast(id){
+  const f=S.forecast.find(x=>x.id===id);
+  if(!f) return;
+  goPage('order');
+  setTimeout(()=>{
+    openOrderModal();
+    document.getElementById('oSku').value=f.sku;
+    document.getElementById('oName').value=f.name;
+    document.getElementById('oQty').value=f.reorder;
+    const deadline=new Date();
+    deadline.setDate(deadline.getDate()+parseInt(document.getElementById('leadDays').value)||90);
+    document.getElementById('oDeadline').value=deadline.toISOString().slice(0,10);
+    document.getElementById('oOrderDate').value=new Date().toISOString().slice(0,10);
+  },100);
+}
+function exportForecastCsv(){
+  const header='SKU,商品名,月平均販売,予測販売数,現在庫,在庫切れまで(日),優先度,推奨発注数\n';
+  const rows=S.forecast.map(f=>[f.sku,f.name,f.avg,f.pred,f.stock,f.daysLeft===999?'':f.daysLeft,f.priority,f.reorder].join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+header+rows],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='forecast.csv';a.click();
+  toast('📥 CSVを出力しました','success');
+}
+function handleCsvUpload(e){
+  const file=e.target.files[0]; if(!file) return;
+  toast('📂 CSV取り込み中...（現バージョンはサンプルデータに変換）');
+  setTimeout(()=>loadSampleForecast(),500);
+}
+
+// ════════════════════════════════
+// ORDERS
+// ════════════════════════════════
+const orderStatusMap={
+  draft:{label:'下書き',cls:'badge-gray'},
+  ordered:{label:'発注済み',cls:'badge-blue'},
+  production:{label:'生産中',cls:'badge-amber'},
+  shipped:{label:'出荷済み',cls:'badge-purple'},
+  received:{label:'入荷済み',cls:'badge-mint'},
+};
+const orderProgress={draft:5,ordered:20,production:55,shipped:80,received:100};
+function orderBadge(s){const m=orderStatusMap[s]||{label:s,cls:'badge-gray'};return `<span class="badge ${m.cls}">${m.label}</span>`;}
+function daysUntil(d){return Math.ceil((new Date(d)-new Date())/(1000*60*60*24));}
+function openOrderModal(id){
+  S.editOrderId=id||null;
+  const o=id?S.orders.find(x=>x.id===id):null;
+  document.getElementById('orderModalTitle').textContent=o?'発注を編集':'発注を追加';
+  document.getElementById('oSku').value=o?.sku||'';
+  document.getElementById('oName').value=o?.name||'';
+  document.getElementById('oFactory').value=o?.factory||'';
+  document.getElementById('oContact').value=o?.contact||'';
+  document.getElementById('oQty').value=o?.qty||'';
+  document.getElementById('oPrice').value=o?.price||'';
+  document.getElementById('oVariant').value=o?.variant||'';
+  document.getElementById('oOrderDate').value=o?.orderDate||new Date().toISOString().slice(0,10);
+  document.getElementById('oDeadline').value=o?.deadline||'';
+  document.getElementById('oStatus').value=o?.status||'ordered';
+  document.getElementById('oNote').value=o?.note||'';
+  openModal('orderModal');
+}
+function saveOrder(){
+  const name=document.getElementById('oName').value.trim();
+  const factory=document.getElementById('oFactory').value.trim();
+  const qty=parseInt(document.getElementById('oQty').value);
+  const orderDate=document.getElementById('oOrderDate').value;
+  const deadline=document.getElementById('oDeadline').value;
+  if(!name||!factory||isNaN(qty)||!orderDate||!deadline){toast('必須項目を入力してください','error');return;}
+  const obj={
+    id:S.editOrderId||nextOid++,
+    sku:document.getElementById('oSku').value.trim(),
+    name, factory, contact:document.getElementById('oContact').value.trim(),
+    qty, price:parseInt(document.getElementById('oPrice').value)||0,
+    variant:document.getElementById('oVariant').value.trim(),
+    orderDate, deadline,
+    status:document.getElementById('oStatus').value,
+    note:document.getElementById('oNote').value.trim(),
+  };
+  if(S.editOrderId){const i=S.orders.findIndex(x=>x.id===S.editOrderId);S.orders[i]=obj;}
+  else S.orders.unshift(obj);
+  save();closeModal('orderModal');renderOrders();renderTimeline();
+  updateOrderKpi();
+  toast(S.editOrderId?'✏️ 更新しました':'✅ 発注を追加しました','success');
+}
+function advanceOrder(id){
+  const order=S.orders.find(x=>x.id===id);if(!order)return;
+  const seq=['draft','ordered','production','shipped','received'];
+  const cur=seq.indexOf(order.status);
+  if(cur<seq.length-1){order.status=seq[cur+1];save();renderOrders();renderTimeline();updateOrderKpi();toast(`▶ ステータスを「${orderStatusMap[order.status].label}」に更新`,'success');}
+}
+function deleteOrder(id){S.orders=S.orders.filter(x=>x.id!==id);save();renderOrders();renderTimeline();updateOrderKpi();toast('🗑️ 削除しました');}
+function updateOrderKpi(){
+  const active=S.orders.filter(o=>['ordered','production','shipped'].includes(o.status));
+  const today=new Date();
+  document.getElementById('orderKpiActive').textContent=active.length;
+  document.getElementById('orderKpiSoon').textContent=active.filter(o=>daysUntil(o.deadline)<=30&&daysUntil(o.deadline)>0).length;
+  document.getElementById('orderKpiLate').textContent=active.filter(o=>daysUntil(o.deadline)<=0).length;
+  const thisMonth=new Date();
+  document.getElementById('orderKpiDone').textContent=S.orders.filter(o=>o.status==='received'&&new Date(o.deadline).getMonth()===today.getMonth()).length;
+}
+function renderOrders(){
+  const search=document.getElementById('orderSearch').value.toLowerCase();
+  const stF=document.getElementById('orderStatusFilter').value;
+  let rows=S.orders.filter(o=>{
+    const ms=!search||(o.name+o.sku+o.factory).toLowerCase().includes(search);
+    const mst=!stF||o.status===stF;
+    return ms&&mst;
+  });
+  const tbody=document.getElementById('orderTable');
+  const empty=document.getElementById('orderEmpty');
+  if(rows.length===0){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  tbody.innerHTML=rows.map(o=>{
+    const days=daysUntil(o.deadline);
+    const daysColor=days<0?'var(--coral)':days<=30?'var(--amber)':'var(--mint)';
+    const prog=orderProgress[o.status]||0;
+    const canAdvance=o.status!=='received';
+    const seq={draft:'ordered',ordered:'production',production:'shipped',shipped:'received'};
+    const nextLabel=orderStatusMap[seq[o.status]]?.label||'';
+    return `<tr>
+      <td><div class="fw7">${o.name}</div><div class="mono" style="font-size:11px;color:var(--muted)">${o.sku||'—'} ${o.variant?'/ '+o.variant:''}</div></td>
+      <td><div class="fw7">${o.factory}</div><div style="font-size:11px;color:var(--muted)">${o.contact||''}</div></td>
+      <td class="text-right mono fw7">${o.qty.toLocaleString()}</td>
+      <td>${o.orderDate}</td>
+      <td class="fw7">${o.deadline}</td>
+      <td class="text-right mono fw7" style="color:${daysColor}">${days<0?'遅延'+Math.abs(days)+'日':days+'日'}</td>
+      <td>${orderBadge(o.status)}</td>
+      <td style="min-width:120px">
+        <div class="progress-wrap"><div class="progress-fill ${prog>=100?'fill-mint':days<0?'fill-coral':'fill-amber'}" style="width:${prog}%"></div></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">${prog}%</div>
+      </td>
+      <td class="text-center">
+        <div style="display:flex;gap:5px;justify-content:center;">
+          ${canAdvance?`<button class="btn btn-ghost btn-sm" onclick="advanceOrder(${o.id})">▶ ${nextLabel}</button>`:''}
+          <button class="btn-icon" onclick="openOrderModal(${o.id})">✏️</button>
+          <button class="btn-icon" onclick="deleteOrder(${o.id})">🗑️</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  updateOrderKpi();
+}
+function renderTimeline(){
+  const active=S.orders.filter(o=>o.status!=='received'&&o.deadline);
+  const area=document.getElementById('timelineArea');
+  if(active.length===0){area.innerHTML='<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">発注データなし</div></div>';return;}
+  const today=new Date();
+  const end=new Date(today);end.setDate(end.getDate()+90);
+  const totalDays=90;
+  area.innerHTML=`<div style="min-width:600px">
+    <div style="display:flex;font-size:10px;color:var(--muted);margin-bottom:8px;padding-left:200px">
+      ${[0,30,60,90].map(d=>`<div style="flex:none;width:${d===90?'0':'33.3%'};text-align:${d===0?'left':'center'}">${new Date(today.getTime()+d*86400000).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})}</div>`).join('')}
+    </div>
+    ${active.map(o=>{
+      const dl=new Date(o.deadline);
+      const od=new Date(o.orderDate);
+      const startPct=Math.max(0,Math.min(100,(od-today)/(totalDays*86400000)*100));
+      const endPct=Math.max(0,Math.min(100,(dl-today)/(totalDays*86400000)*100));
+      const width=Math.max(1,endPct-startPct);
+      const color=dl<today?'var(--coral)':daysUntil(o.deadline)<=30?'var(--amber)':'var(--blue)';
+      return `<div style="display:flex;align-items:center;margin-bottom:8px;gap:8px">
+        <div style="width:200px;flex-shrink:0;font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.name}">${o.name}</div>
+        <div style="flex:1;background:var(--rule);border-radius:4px;height:24px;position:relative">
+          <div style="position:absolute;left:${startPct}%;width:${width}%;background:${color};height:100%;border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:10px;color:white;font-weight:700;overflow:hidden;white-space:nowrap">${o.qty.toLocaleString()}点</div>
+        </div>
+        <div style="width:60px;flex-shrink:0;font-size:10px;color:var(--muted)">${orderBadge(o.status)}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ════════════════════════════════
+// CHANNEL DEFINITIONS (全10拠点)
+// ════════════════════════════════
+const ALL_CHANNELS = [
+  { key:'warehouse',   label:'倉庫',        icon:'🏭', smaregi:true  },
+  { key:'shopify',     label:'オンライン',  icon:'🌐', smaregi:true  },
+  { key:'daikanyama',  label:'代官山',      icon:'🏬', smaregi:true  },
+  { key:'nagoya',      label:'名古屋',      icon:'🏬', smaregi:true  },
+  { key:'kobe',        label:'神戸',        icon:'🏬', smaregi:true  },
+  { key:'bazar',       label:'bazar',       icon:'🏷️', smaregi:true  },
+  { key:'linegift',    label:'LINEギフト',  icon:'💚', smaregi:true  },
+  { key:'zozo',        label:'ZOZO',        icon:'👗', smaregi:false },
+  { key:'amazon',      label:'Amazon',      icon:'📦', smaregi:false },
+  { key:'rakuten',     label:'楽天',        icon:'🛒', smaregi:false },
+];
+
+// ════════════════════════════════
+// PRODUCTS PAGE
+// ════════════════════════════════
+// S.products = array of {
+//   itemNo, name, color, size, price,
+//   warehouse, shopify, daikanyama, nagoya, kobe, bazar, linegift,
+//   zozo, amazon, rakuten
+// }
+if (!S.products) S.products = [];
+
+function getActiveChs() {
+  return ALL_CHANNELS.filter(ch => {
+    const el = document.querySelector(`.ch-toggle[data-ch="${ch.key}"] input`);
+    return el ? el.checked : false;
+  });
+}
+
+// ── ソート状態管理 ──────────────────────────────────
+const PROD_SORT = { key: null, dir: 1 }; // dir: 1=昇順, -1=降順
+// 在庫カラムの0フィルター状態: { 'warehouse': true, ... }
+const STOCK_ZERO_FILTER = {};
+
+function setSortKey(key) {
+  if (PROD_SORT.key === key) {
+    PROD_SORT.dir *= -1;
+  } else {
+    PROD_SORT.key = key;
+    PROD_SORT.dir = 1;
+  }
+  renderProducts();
+}
+
+function sortIcon(key) {
+  if (PROD_SORT.key !== key) return '<span style="opacity:0.3;font-size:9px;margin-left:3px">⇅</span>';
+  return PROD_SORT.dir === 1
+    ? '<span style="font-size:9px;margin-left:3px;color:var(--mint)">▲</span>'
+    : '<span style="font-size:9px;margin-left:3px;color:var(--mint)">▼</span>';
+}
+
+function toggleStockZeroFilter(chKey, event) {
+  event.stopPropagation();
+  const menu = document.getElementById('stockMenu_' + chKey);
+  // 他のメニューを閉じる
+  document.querySelectorAll('.stock-filter-menu').forEach(m => {
+    if (m !== menu) m.style.display = 'none';
+  });
+  menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+}
+
+function setStockFilter(chKey, mode) {
+  STOCK_ZERO_FILTER[chKey] = mode; // 'all' | 'zero' | 'nonzero'
+  document.getElementById('stockMenu_' + chKey).style.display = 'none';
+  renderProducts();
+}
+
+// メニューを外クリックで閉じる
+document.addEventListener('click', () => {
+  document.querySelectorAll('.stock-filter-menu').forEach(m => m.style.display = 'none');
+});
+
+function exportProductsCsv() {
+  if (!S.products || S.products.length === 0) {
+    toast('CSVを取り込んでからダウンロードしてください', 'warn');
+    return;
+  }
+
+  const search    = (document.getElementById('prodSearch')?.value || '').toLowerCase();
+  const colorF    = document.getElementById('prodColorFilter')?.value || '';
+  const sizeF     = document.getElementById('prodSizeFilter')?.value || '';
+  const stockF    = document.getElementById('prodStockFilter')?.value || '';
+  const activeChs = getActiveChs();
+
+  // 現在表示中と同じフィルター・ソートを適用
+  let rows = S.products.filter(p => {
+    if (search && !((p.itemNo||'').toLowerCase().includes(search) || (p.name||'').toLowerCase().includes(search))) return false;
+    if (colorF && p.color !== colorF) return false;
+    if (sizeF  && p.size  !== sizeF)  return false;
+    if (stockF) {
+      const total = activeChs.reduce((s, ch) => s + (p[ch.key]||0), 0);
+      if (stockF === 'ok'  && total <= 10) return false;
+      if (stockF === 'low' && (total === 0 || total > 10)) return false;
+      if (stockF === 'out' && total > 0)   return false;
+    }
+    for (const [chKey, mode] of Object.entries(STOCK_ZERO_FILTER)) {
+      if (mode === 'zero'    && (p[chKey]||0) !== 0) return false;
+      if (mode === 'nonzero' && (p[chKey]||0) === 0) return false;
+    }
+    return true;
+  });
+
+  if (PROD_SORT.key) {
+    rows = [...rows].sort((a, b) => {
+      const k = PROD_SORT.key;
+      let va, vb;
+      if (k === 'total') {
+        va = activeChs.reduce((s,ch) => s+(a[ch.key]||0), 0);
+        vb = activeChs.reduce((s,ch) => s+(b[ch.key]||0), 0);
+      } else if (['warehouse','shopify','daikanyama','nagoya','kobe','bazar','linegift','zozo','amazon','rakuten'].includes(k)) {
+        va = a[k]||0; vb = b[k]||0;
+      } else if (k === 'price') {
+        va = Number(a.price)||0; vb = Number(b.price)||0;
+      } else {
+        va = (a[k]||'').toString().toLowerCase();
+        vb = (b[k]||'').toString().toLowerCase();
+      }
+      if (va < vb) return -PROD_SORT.dir;
+      if (va > vb) return  PROD_SORT.dir;
+      return 0;
+    });
+  }
+
+  // ヘッダー行：表示中チャネルのみ
+  const chHeaders = activeChs.map(ch => ch.label);
+  const headers = ['品番', 'JANコード', '商品名', 'カラー', 'サイズ', '価格', ...chHeaders, '合計'];
+
+  const escape = v => {
+    const s = String(v ?? '');
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const csvRows = rows.map(p => {
+    const chVals = activeChs.map(ch => p[ch.key] || 0);
+    const total  = chVals.reduce((s, v) => s + v, 0);
+    return [
+      p.itemNo || '',
+      p.jan    || '',
+      p.name   || '',
+      p.color  || '',
+      p.size   || '',
+      p.price  || 0,
+      ...chVals,
+      total,
+    ].map(escape).join(',');
+  });
+
+  const csv = '\uFEFF' + headers.join(',') + '\n' + csvRows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const now  = new Date().toLocaleDateString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
+  const filename = `在庫一覧_${now}.csv`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  toast(`📥 ${rows.length.toLocaleString()}件をCSV出力しました`, 'success');
+}
+
+// ── JAN表示切替 ──────────────────────────────────
+let janVisible = true;
+function toggleJanVisibility() {
+  janVisible = !janVisible;
+  const btn = document.getElementById('janToggleBtn');
+  if (btn) {
+    btn.style.opacity = janVisible ? '1' : '0.4';
+    btn.title = janVisible ? 'JANコードを非表示' : 'JANコードを表示';
+  }
+  document.querySelectorAll('.col-jan').forEach(el => {
+    el.classList.toggle('jan-hidden', !janVisible);
+  });
+}
+
+// ── 工場出荷中フィルター ──────────────────────────
+let shipQtyFilter = 'all';
+
+function toggleShipFilter(event) {
+  event.stopPropagation();
+  const menu = document.getElementById('shipFilterMenu');
+  if (menu) menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+}
+
+function setShipFilter(mode) {
+  shipQtyFilter = mode;
+  const menu = document.getElementById('shipFilterMenu');
+  if (menu) menu.style.display = 'none';
+  ['all','zero','nonzero'].forEach(m => {
+    const el = document.getElementById('sf_' + m);
+    if (!el) return;
+    el.style.color = m === mode ? 'var(--mint)' : 'var(--ink)';
+    el.style.background = m === mode ? 'var(--mint-dim)' : 'white';
+    el.textContent = (m === mode ? '✓ ' : '　') + (m === 'all' ? 'すべて表示' : m === 'zero' ? '—のみ表示' : '1以上のみ');
+  });
+  const dot = document.getElementById('shipFilterDot');
+  if (dot) dot.style.display = mode !== 'all' ? 'inline' : 'none';
+  renderProducts();
+}
+
+function resetAllFilters() {
+  // テキスト検索・セレクトをクリア
+  const search = document.getElementById('prodSearch');
+  const colorF = document.getElementById('prodColorFilter');
+  const sizeF  = document.getElementById('prodSizeFilter');
+  const stockF = document.getElementById('prodStockFilter');
+  if (search) search.value = '';
+  if (colorF) colorF.value = '';
+  if (sizeF)  sizeF.value  = '';
+  if (stockF) stockF.value = '';
+  // 在庫0フィルターをすべてリセット
+  Object.keys(STOCK_ZERO_FILTER).forEach(k => delete STOCK_ZERO_FILTER[k]);
+  // 工場出荷中フィルターをリセット
+  shipQtyFilter = 'all';
+  setShipFilter('all');
+  // ソートもリセット
+  PROD_SORT.key = null;
+  PROD_SORT.dir = 1;
+  renderProducts();
+  toast('🔄 フィルターをリセットしました');
+}
+
+function renderProducts() {
+  const search   = (document.getElementById('prodSearch')?.value||'').toLowerCase();
+  const colorF   = document.getElementById('prodColorFilter')?.value||'';
+  const sizeF    = document.getElementById('prodSizeFilter')?.value||'';
+  const stockF   = document.getElementById('prodStockFilter')?.value||'';
+  const activeChs = getActiveChs();
+
+  // Show import hint if no data
+  const hintEl = document.getElementById('prodImportHint');
+  if (S.products.length === 0) {
+    if (hintEl) hintEl.style.display = 'block';
+    document.getElementById('prodEmpty').style.display = 'block';
+    document.getElementById('prodTable').style.display = 'none';
+    document.getElementById('prodCount').textContent = '0件';
+    updateFilterOptions();
+    return;
+  }
+  if (hintEl) hintEl.style.display = 'none';
+
+  // Filter
+  let rows = S.products.filter(p => {
+    if (search && !(
+      (p.itemNo||'').toLowerCase().includes(search) ||
+      (p.name||'').toLowerCase().includes(search)
+    )) return false;
+    if (colorF && p.color !== colorF) return false;
+    if (sizeF  && p.size  !== sizeF)  return false;
+    if (stockF) {
+      const total = activeChs.reduce((s,ch) => s + (p[ch.key]||0), 0);
+      if (stockF === 'ok'  && total <= 10) return false;
+      if (stockF === 'low' && (total === 0 || total > 10)) return false;
+      if (stockF === 'out' && total > 0)  return false;
+    }
+    // 在庫0フィルター（チャネル個別）
+    for (const [chKey, mode] of Object.entries(STOCK_ZERO_FILTER)) {
+      if (mode === 'zero'    && (p[chKey]||0) !== 0)  return false;
+      if (mode === 'nonzero' && (p[chKey]||0) === 0)  return false;
+    }
+    // 工場出荷中フィルター
+    if (shipQtyFilter !== 'all') {
+      const sKey = `${p.itemNo||''}__${p.color||''}__${p.size||''}`;
+      const sQty = (S.shipments||[]).filter(s => `${s.itemNo||''}__${s.color||''}__${s.size||''}` === sKey).reduce((sum,s)=>sum+(s.qty||0),0);
+      if (shipQtyFilter === 'zero'    && sQty > 0)  return false;
+      if (shipQtyFilter === 'nonzero' && sQty === 0) return false;
+    }
+    return true;
+  });
+
+  // Sort
+  if (PROD_SORT.key) {
+    rows = [...rows].sort((a, b) => {
+      const k = PROD_SORT.key;
+      let va, vb;
+      if (k === 'total') {
+        va = activeChs.reduce((s,ch) => s+(a[ch.key]||0), 0);
+        vb = activeChs.reduce((s,ch) => s+(b[ch.key]||0), 0);
+      } else if (['warehouse','shopify','daikanyama','nagoya','kobe','bazar','linegift','zozo','amazon','rakuten'].includes(k)) {
+        va = a[k]||0; vb = b[k]||0;
+      } else if (k === 'price') {
+        va = Number(a.price)||0; vb = Number(b.price)||0;
+      } else {
+        va = (a[k]||'').toString().toLowerCase();
+        vb = (b[k]||'').toString().toLowerCase();
+      }
+      if (va < vb) return -PROD_SORT.dir;
+      if (va > vb) return  PROD_SORT.dir;
+      return 0;
+    });
+  }
+
+  const tbody = document.getElementById('prodTableBody');
+  const thead = document.getElementById('prodTableHead');
+  const empty = document.getElementById('prodEmpty');
+  const tbl   = document.getElementById('prodTable');
+
+  if (rows.length === 0) {
+    empty.style.display = 'block';
+    tbl.style.display = 'none';
+    document.getElementById('prodCount').textContent = '0件';
+    return;
+  }
+  empty.style.display = 'none';
+  tbl.style.display = 'table';
+
+  // Build header
+  const thBase = 'padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);white-space:nowrap;user-select:none;';
+  const thSort = thBase + 'cursor:pointer;';
+  const thSortHover = 'onmouseover="this.style.color=\'var(--ink)\'" onmouseout="this.style.color=\'var(--muted)\'"';
+
+  // 品番+サイズ+カラーで出荷中合計を計算するマップを作成
+  const shipmentMap = {};
+  (S.shipments || []).forEach(s => {
+    const key = `${s.itemNo||''}__${s.color||''}__${s.size||''}`;
+    shipmentMap[key] = (shipmentMap[key] || 0) + (s.qty || 0);
+  });
+
+  thead.innerHTML = `
+    <th style="${thSort}text-align:left" onclick="setSortKey('itemNo')" ${thSortHover}>品番${sortIcon('itemNo')}</th>
+    <th class="col-jan${janVisible?'':' jan-hidden'}" style="${thBase}text-align:left">JANコード</th>
+    <th style="${thSort}text-align:left" onclick="setSortKey('name')" ${thSortHover}>商品名${sortIcon('name')}</th>
+    <th style="${thBase}text-align:left">カラー</th>
+    <th style="${thSort}text-align:left" onclick="setSortKey('size')" ${thSortHover}>サイズ${sortIcon('size')}</th>
+    <th style="${thSort}text-align:right" onclick="setSortKey('price')" ${thSortHover}>価格${sortIcon('price')}</th>
+    ${activeChs.map(ch => {
+      const filterMode = STOCK_ZERO_FILTER[ch.key] || 'all';
+      const filterDot = filterMode !== 'all' ? '<span style="color:var(--amber);margin-left:2px;font-size:10px">●</span>' : '';
+      const menuItems = [
+        { mode:'all',     label:'すべて表示' },
+        { mode:'zero',    label:'0のみ表示' },
+        { mode:'nonzero', label:'1以上のみ' },
+      ].map(m => `<div onclick="setStockFilter('${ch.key}','${m.mode}')" style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;${filterMode===m.mode?'color:var(--mint);background:var(--mint-dim)':''}" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${filterMode===m.mode?'var(--mint-dim)':'white'}'">
+        ${filterMode===m.mode?'✓ ':'　'}${m.label}
+      </div>`).join('');
+      return `
+    <th style="${thSort}text-align:right;background:${ch.smaregi?'#f0faf5':'#f5f5ff'}" onclick="setSortKey('${ch.key}')" ${thSortHover}>
+      <span style="display:inline-flex;align-items:center;gap:2px;justify-content:flex-end">
+        ${ch.icon} ${ch.label}${sortIcon(ch.key)}${filterDot}
+        <span onclick="toggleStockZeroFilter('${ch.key}',event)" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;background:var(--rule);font-size:9px;cursor:pointer;margin-left:2px;flex-shrink:0" title="絞り込み">▾</span>
+      </span>
+      <div id="stockMenu_${ch.key}" class="stock-filter-menu" style="display:none;position:absolute;z-index:100;background:white;border:1.5px solid var(--rule);border-radius:var(--r-sm);box-shadow:var(--sh-lg);margin-top:4px;min-width:120px">
+        ${menuItems}
+      </div>
+    </th>`;
+    }).join('')}
+    <th style="${thSort}text-align:right" onclick="setSortKey('total')" ${thSortHover}>合計${sortIcon('total')}</th>
+    <th style="${thBase}text-align:right;background:#fff8e6;white-space:nowrap;position:relative">
+      <span style="display:inline-flex;align-items:center;gap:3px;justify-content:flex-end">
+        🚢 工場出荷中
+        <span id="shipFilterDot" style="display:none;color:var(--amber);font-size:10px">●</span>
+        <span onclick="toggleShipFilter(event)" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;background:var(--rule);font-size:9px;cursor:pointer;margin-left:2px;flex-shrink:0" title="絞り込み">▾</span>
+      </span>
+      <div id="shipFilterMenu" class="stock-filter-menu" style="display:none;position:absolute;right:0;z-index:100;background:white;border:1.5px solid var(--rule);border-radius:var(--r-sm);box-shadow:var(--sh-lg);margin-top:4px;min-width:120px;text-align:left">
+        <div onclick="setShipFilter('all')"     id="sf_all"     style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;color:var(--mint);background:var(--mint-dim)">✓ すべて表示</div>
+        <div onclick="setShipFilter('zero')"    id="sf_zero"    style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">　—のみ表示</div>
+        <div onclick="setShipFilter('nonzero')" id="sf_nonzero" style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">　1以上のみ</div>
+      </div>
+    </th>
+  `;
+
+  // Build rows
+  tbody.innerHTML = rows.slice(0, 500).map(p => {
+    const chCells = activeChs.map(ch => {
+      const v = p[ch.key] || 0;
+      const cls = v === 0 ? 'sc-out' : v <= 5 ? 'sc-low' : 'sc-ok';
+      return `<td style="padding:10px 12px;text-align:right;border-bottom:1px solid var(--rule);background:${ch.smaregi?'rgba(0,168,120,0.03)':'rgba(26,110,240,0.03)'}" class="mono ${cls}">${v}</td>`;
+    }).join('');
+    const total = activeChs.reduce((s,ch) => s+(p[ch.key]||0), 0);
+    const totalCls = total === 0 ? 'sc-out' : total <= 10 ? 'sc-low' : 'sc-ok';
+    const priceNum = Number(p.price);
+    const priceStr = (!isNaN(priceNum) && priceNum > 0) ? '¥' + priceNum.toLocaleString() : '—';
+    const shipKey = `${p.itemNo||''}__${p.color||''}__${p.size||''}`;
+    const shipQty = shipmentMap[shipKey] || 0;
+    return `<tr>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap">${p.itemNo||'—'}</td>
+      <td class="col-jan${janVisible?'':' jan-hidden'}" style="padding:10px 12px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap">${p.jan||'—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.name||''}">${p.name||'—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);">${p.color ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600">${p.color}</span>` : '—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);">${p.size ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:var(--blue-dim);color:var(--blue);font-size:11px;font-weight:700;font-family:'DM Mono',monospace">${p.size}</span>` : '—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:var(--ink)">${priceStr}</td>
+      ${chCells}
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:700;font-size:14px" class="${totalCls}">${total}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:700;background:#fff8e6;color:${shipQty>0?'var(--amber)':'var(--muted)'}">${shipQty > 0 ? shipQty.toLocaleString() : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  // Update totals
+  const grandTotal = rows.reduce((s,p) => s + activeChs.reduce((ss,ch) => ss+(p[ch.key]||0), 0), 0);
+  document.getElementById('prodCount').textContent = `${rows.length.toLocaleString()}件`;
+  document.getElementById('prodTotalStock').textContent = `表示チャネル合計在庫: ${grandTotal.toLocaleString()}点`;
+
+  updateFilterOptions(rows);
+}
+
+function updateFilterOptions(rows) {
+  const src = rows || S.products;
+  const colors = [...new Set(src.map(p=>p.color).filter(Boolean))].sort();
+  const sizes  = [...new Set(src.map(p=>p.size).filter(Boolean))].sort((a,b)=>{
+    const n = s => parseInt(s)||999;
+    return n(a) - n(b);
+  });
+  const colorSel = document.getElementById('prodColorFilter');
+  const sizeSel  = document.getElementById('prodSizeFilter');
+  const cv = colorSel?.value, sv = sizeSel?.value;
+
+  if (colorSel) {
+    colorSel.innerHTML = '<option value="">カラー: すべて</option>' +
+      [...new Set(S.products.map(p=>p.color).filter(Boolean))].sort().map(c=>`<option value="${c}" ${c===cv?'selected':''}>${c}</option>`).join('');
+  }
+  if (sizeSel) {
+    sizeSel.innerHTML = '<option value="">サイズ: すべて</option>' +
+      [...new Set(S.products.map(p=>p.size).filter(Boolean))].sort((a,b)=>(parseInt(a)||999)-(parseInt(b)||999))
+      .map(s=>`<option value="${s}" ${s===sv?'selected':''}>${s}</option>`).join('');
+  }
+}
+
+// スマレジCSV取込後に商品データを構築する関数
+function buildProductsFromSmaregi(data) {
+  S.products = data.map(d => ({
+    itemNo:     d.code  || '',
+    jan:        d.jan   || '',
+    name:       d.name  || '',
+    color:      d.color || '',
+    size:       d.size  || '',
+    price:      Number(d.price) || 0,
+    warehouse:  Number(d.wh)         || 0,
+    shopify:    Number(d.online)      || 0,
+    daikanyama: Number(d.daikanyama)  || 0,
+    nagoya:     Number(d.nagoya)      || 0,
+    kobe:       Number(d.kobe)        || 0,
+    bazar:      Number(d.bazar)       || 0,
+    linegift:   Number(d.linegift)    || 0,
+    zozo:       0,
+    amazon:     0,
+    rakuten:    0,
+  }));
+  renderProducts(); // localStorage保存スキップ（データ量超過対策）
+  // クラウド同期（GAS設定済みの場合）
+  pushProductsToCloud(data);
+}
+
+function extractColor(name) {
+  const colorMap = {
+    'ピンク':'ピンク','pink':'ピンク','PNK':'ピンク',
+    'ネイビー':'ネイビー','navy':'ネイビー','NVY':'ネイビー',
+    'ホワイト':'ホワイト','white':'ホワイト','WHT':'ホワイト',
+    'グレー':'グレー','gray':'グレー','grey':'グレー','GRY':'グレー',
+    'ブラック':'ブラック','black':'ブラック','BLK':'ブラック',
+    'ブルー':'ブルー','blue':'ブルー','BLU':'ブルー',
+    'レッド':'レッド','red':'レッド','RED':'レッド',
+    'イエロー':'イエロー','yellow':'イエロー','YEL':'イエロー',
+    'ベージュ':'ベージュ','beige':'ベージュ','BGE':'ベージュ',
+    'グリーン':'グリーン','green':'グリーン','GRN':'グリーン',
+  };
+  for (const [k,v] of Object.entries(colorMap)) {
+    if (name.includes(k)) return v;
+  }
+  return '';
+}
+
+function extractSize(name) {
+  const m = name.match(/(\d{2,3})\s*cm/i) || name.match(/(70|80|90|100|110|120|130|140|150)/);
+  return m ? m[1]+'cm' : '';
+}
+
+// Load cached products
+if (!S.products || S.products.length === 0) {
+  const cached = localStorage.getItem('hub_products');
+  if (cached) S.products = JSON.parse(cached);
+}
+
+// ════════════════════════════════
+// EXTERNAL CHANNEL CSV IMPORT
+// ════════════════════════════════
+
+// チャネル設定
+const EXT_CHANNELS = {
+  zozo: {
+    label: 'ZOZO', icon: '👗', color: 'var(--ink)',
+    fixedMap: true,
+    hint: `CS品番, 商品名, カラー, サイズ, プロパー価格（税抜）, 販売可能数合計\n※ZOZO管理画面 → 在庫管理 → 在庫一覧 → CSVダウンロード`,
+    guide: [
+      'ZOZOのブランド管理画面にログイン',
+      '「在庫管理」→「在庫一覧」を選択',
+      '「CSVダウンロード」をクリックして保存',
+      'このツールにファイルを取込',
+    ],
+    fixedMapping: {
+      sku:   'CS品番',
+      jan:   null,
+      name:  '商品名',
+      color: 'カラー',
+      size:  'サイズ',
+      price: 'プロパー価格（税抜）',
+      stock: '販売可能数合計',
+    },
+    patterns: {
+      sku:   ['cs品番','CS品番'],
+      name:  ['商品名'],
+      stock: ['販売可能数合計'],
+    },
+  },
+  rakuten: {
+    label: '楽天市場', icon: '🛒', color: '#bf0000',
+    fixedMap: true,
+    hint: `JANコード, 商品名, 受注可能倉庫在庫\n※RMS → 店舗設定 → 商品管理 → 2.CSV一括編集 → CSVダウンロード`,
+    guide: [
+      'RMS（楽天市場店舗運営システム）にログイン',
+      '「店舗設定」→「商品管理」をクリック',
+      '「2.CSV一括編集」→「CSVダウンロード」を選択',
+      '項目選択で「在庫数」にチェックを入れてダウンロード',
+      'SFTPソフト(WinSCPなど)で /ritem/download/ からファイルを取得',
+      'このツールにファイルを取込',
+    ],
+    fixedMapping: {
+      sku:   null,
+      jan:   'JANコード',
+      name:  '商品名',
+      color: null,
+      size:  null,
+      price: null,
+      stock: '受注可能倉庫在庫',
+    },
+    patterns: {
+      sku:   ['sku管理番号','商品管理番号'],
+      name:  ['商品名'],
+      stock: ['受注可能倉庫在庫'],
+    },
+  },
+  amazon: {
+    label: 'Amazon', icon: '📦', color: '#ff9900',
+    hint: `出品者SKU, ASIN, 商品名, 在庫数\nKD-001-90, B09XXXXXX, フラワーワンピース 90cm, 45\n※セラーセントラル → レポート → 出品レポート\n　→「出品詳細レポート（カスタム）」でダウンロード\n　※ファイルはタブ区切り（TXT）です`,
+    guide: [
+      'セラーセントラル（sellercentral.amazon.co.jp）にログイン',
+      '左上メニュー「≡」→「レポート」→「出品レポート」',
+      '「このレポートの項目をカスタマイズする」をクリック',
+      '「出品者SKU・item-name・quantity（在庫数）」を選択',
+      '「出品詳細レポート（カスタム）」を選択して「レポートをリクエスト」',
+      '準備完了になったらダウンロード（TXT形式）',
+      'このツールにファイルを取込（TXTのまま対応）',
+    ],
+    patterns: {
+      sku:   ['出品者sku','seller-sku','seller_sku','sku','出品者sku'],
+      name:  ['item-name','item_name','商品名','title','name','商品タイトル'],
+      stock: ['quantity','在庫数','stock','qty','available','fulfillable-quantity'],
+    },
+  },
+};
+
+let extChannel = null;
+let extStep = 1;
+let extParsedRows = [];
+let extColumns = [];
+let extMapping = { sku: null, name: null, stock: null };
+
+function openExternalCsvModal(ch) {
+  extChannel = ch;
+  extStep = 1;
+  extParsedRows = []; extColumns = [];
+  extMapping = { sku: null, jan: null, name: null, color: null, size: null, price: null, stock: null };
+  document.getElementById('extCsvFileInput').value = '';
+
+  const cfg = EXT_CHANNELS[ch];
+  document.getElementById('extCsvTitle').textContent = `${cfg.icon} ${cfg.label} CSV 取込`;
+  document.getElementById('extFormatHint').innerHTML =
+    `<div style="font-size:10px;color:#9ef;margin-bottom:4px;font-weight:700">【フォーマット例 / ダウンロード方法】</div>` +
+    cfg.hint.split('\n').map(l => `<div>${l}</div>`).join('');
+
+  // Guide
+  document.getElementById('extGuideArea').innerHTML = `
+    <div style="background:var(--surface2);border:1px solid var(--rule);border-radius:var(--r-sm);padding:12px;">
+      <div style="font-size:11px;font-weight:700;margin-bottom:8px;color:${cfg.color}">${cfg.icon} ${cfg.label}のCSVダウンロード手順</div>
+      <ol style="margin-left:16px;font-size:11px;color:var(--ink2);line-height:2;">
+        ${cfg.guide.map(g => `<li>${g}</li>`).join('')}
+      </ol>
+    </div>`;
+
+  document.getElementById('extDropTitle').textContent = 'CSVファイルをドロップ、またはクリック';
+  document.getElementById('extDropSub').textContent = ch === 'amazon' ? 'タブ区切りTXTファイルにも対応しています' : '管理画面からダウンロードしたCSVファイルを選択';
+
+  // 固定マッピングの場合はステップ表示を2ステップに
+  const isFixed = cfg.fixedMap === true;
+  document.getElementById('extStep2').style.display = isFixed ? 'none' : '';
+  document.getElementById('extBtnNext').textContent = isFixed ? '次へ（確認） →' : '次へ →';
+
+  showExtStep(1);
+  openModal('externalCsvModal');
+}
+
+function showExtStep(n) {
+  extStep = n;
+  [1,2,3].forEach(i => {
+    document.getElementById(`extPane${i}`).style.display = i === n ? 'block' : 'none';
+    const el = document.getElementById(`extStep${i}`);
+    const ch = EXT_CHANNELS[extChannel];
+    el.style.background = i < n ? '#d1fae5' : i === n ? 'var(--blue)' : 'var(--surface2)';
+    el.style.color = i <= n ? 'white' : 'var(--muted)';
+  });
+  document.getElementById('extBtnPrev').style.display = n > 1 ? 'inline-flex' : 'none';
+  document.getElementById('extBtnNext').style.display = n < 3 ? 'inline-flex' : 'none';
+  document.getElementById('extBtnImport').style.display = n === 3 ? 'inline-flex' : 'none';
+}
+
+function extNext() {
+  if (extStep === 1) {
+    if (extParsedRows.length === 0) { toast('CSVファイルを選択してください', 'error'); return; }
+    const cfg = EXT_CHANNELS[extChannel];
+    if (cfg.fixedMap) {
+      // 固定マッピング：ステップ2をスキップ
+      applyFixedExtMapping(extChannel);
+      renderExtPreview();
+      showExtStep(3);
+    } else {
+      renderExtMappingUI(); showExtStep(2);
+    }
+  } else if (extStep === 2) {
+    collectExtMapping(); renderExtPreview(); showExtStep(3);
+  }
+}
+function extPrev() { showExtStep(extStep - 1); }
+
+// 外部チャネル固定マッピング適用
+function applyFixedExtMapping(ch) {
+  const cfg = EXT_CHANNELS[ch];
+  if (!cfg.fixedMapping) return;
+  const clean = s => s ? s.toLowerCase().replace(/[\s\u3000\r\n\t]/g, '') : '';
+  extMapping = { sku: null, jan: null, name: null, color: null, size: null, price: null, stock: null };
+  Object.entries(cfg.fixedMapping).forEach(([key, colName]) => {
+    if (colName === null) { extMapping[key] = null; return; }
+    const idx = extColumns.findIndex(h => clean(h) === clean(colName) || clean(h).includes(clean(colName)));
+    extMapping[key] = idx >= 0 ? idx : null;
+  });
+}
+
+function autoDetectExtColumns(headers, ch) {
+  const patterns = EXT_CHANNELS[ch].patterns;
+  const mapping = { sku: null, name: null, stock: null };
+  headers.forEach((h, i) => {
+    const hl = h.toLowerCase().trim().replace(/\s/g,'');
+    Object.entries(patterns).forEach(([key, pats]) => {
+      if (mapping[key] === null) {
+        if (pats.some(p => hl.includes(p.toLowerCase().replace(/\s/g,'')))) {
+          mapping[key] = i;
+        }
+      }
+    });
+  });
+  return mapping;
+}
+
+function handleExtCsv(e) {
+  const file = e.target.files[0]; if (!file) return;
+  readFileAutoEncoding(file, text => {
+    if (!text) { toast('ファイルを読み込めませんでした', 'error'); return; }
+    const isTab = extChannel === 'amazon' || text.includes('\t');
+    const parsed = isTab ? parseTSV(text) : parseCSV(text);
+    if (parsed.headers.length === 0) { toast('CSVを読み込めませんでした。ファイルを確認してください', 'error'); return; }
+    extColumns = parsed.headers;
+    extParsedRows = parsed.rows;
+
+    // 固定マッピングのチャネルはここで即時適用（autoDetectで上書きしない）
+    const cfg = EXT_CHANNELS[extChannel];
+    if (cfg.fixedMap) {
+      applyFixedExtMapping(extChannel);
+      // マッピング結果をデバッグ表示
+      const mapInfo = Object.entries(extMapping).map(([k,v]) =>
+        v !== null ? `${k}→列${v+1}(${extColumns[v]})` : `${k}→未検出`
+      ).join(' / ');
+      console.log('[固定マッピング結果]', mapInfo);
+      toast(`📂 ${extParsedRows.length}行を読み込みました（固定マッピング適用済み）`, 'success');
+    } else {
+      extMapping = autoDetectExtColumns(extColumns, extChannel);
+      const detected = Object.values(extMapping).filter(v => v !== null).length;
+      toast(`📂 ${extParsedRows.length}行を読み込みました（${detected}/3項目自動検出）`, 'success');
+    }
+    document.getElementById('extDropTitle').textContent = `✅ ${file.name}`;
+    document.getElementById('extDropSub').textContent = `${extParsedRows.length}行 × ${extColumns.length}列`;
+  });
+}
+
+function parseTSV(text) {
+  text = text.replace(/^\uFEFF/, '');
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return { headers: [], rows: [] };
+  const split = l => l.split('\t').map(c => c.trim());
+  return { headers: split(lines[0]), rows: lines.slice(1).map(split).filter(r => r.some(c => c)) };
+}
+
+function renderExtMappingUI() {
+  const fields = [
+    { key: 'sku',   label: 'SKU / 管理番号', req: true },
+    { key: 'name',  label: '商品名',          req: false },
+    { key: 'stock', label: '在庫数',          req: true },
+  ];
+  document.getElementById('extMappingArea').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+    ${fields.map(f => `
+      <div class="fg" style="margin:0">
+        <label>${f.label}${f.req ? ' <span class="req">*</span>' : ''}</label>
+        <select id="extMap_${f.key}" style="width:100%;font-size:12px;padding:7px 10px;border:1.5px solid var(--rule);border-radius:var(--r-sm)">
+          <option value="">— 使用しない —</option>
+          ${extColumns.map((h, i) => `<option value="${i}" ${extMapping[f.key] === i ? 'selected' : ''}>${h}</option>`).join('')}
+        </select>
+      </div>
+    `).join('')}
+    </div>
+    <div style="margin-top:12px;background:var(--blue-dim);border-radius:var(--r-sm);padding:10px;font-size:11px;color:#1050b0;">
+      ✅ フォーマットを自動検出しました。内容を確認して「次へ」をクリックしてください。
+    </div>
+  `;
+}
+
+function collectExtMapping() {
+  ['sku', 'name', 'stock'].forEach(k => {
+    const el = document.getElementById(`extMap_${k}`);
+    extMapping[k] = el && el.value !== '' ? parseInt(el.value) : null;
+  });
+}
+
+function renderExtPreview() {
+  const preview = extParsedRows.slice(0, 200).map(row => ({
+    sku:   extMapping.sku   !== null ? row[extMapping.sku]  || '' : '—',
+    name:  extMapping.name  !== null ? row[extMapping.name] || '' : '—',
+    stock: extMapping.stock !== null ? parseInt(row[extMapping.stock]) || 0 : 0,
+  }));
+
+  const totalStock = preview.reduce((s, r) => s + r.stock, 0);
+  const cfg = EXT_CHANNELS[extChannel];
+
+  // マッピング状況を可視化
+  const mappingFields = cfg.fixedMap && cfg.fixedMapping
+    ? Object.entries(cfg.fixedMapping)
+    : [['sku', extMapping.sku !== null ? extColumns[extMapping.sku] : null],
+       ['name', extMapping.name !== null ? extColumns[extMapping.name] : null],
+       ['stock', extMapping.stock !== null ? extColumns[extMapping.stock] : null]];
+  const fieldLabels = {sku:'品番',jan:'JANコード',name:'商品名',color:'カラー',size:'サイズ',price:'価格',stock:'在庫数'};
+  const mappingHtml = Object.entries(extMapping).map(([key, idx]) => {
+    const colName = idx !== null ? extColumns[idx] : null;
+    const label = fieldLabels[key] || key;
+    return `<span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700;margin:2px;background:${colName?'var(--mint-dim)':'var(--surface2)'};color:${colName?'var(--mint)':'var(--muted)'}">
+      ${colName ? '✅' : '—'} ${label}${colName ? ' → ' + colName : '（スルー）'}
+    </span>`;
+  }).join('');
+
+  document.getElementById('extPreviewSummary').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+      <div class="info-box"><div class="info-box-label">取込SKU数</div><div class="info-box-value" style="color:var(--blue)">${extParsedRows.length.toLocaleString()}</div></div>
+      <div class="info-box"><div class="info-box-label">${cfg.icon} ${cfg.label} 在庫合計</div><div class="info-box-value" style="color:var(--mint)">${totalStock.toLocaleString()}</div></div>
+      <div class="info-box"><div class="info-box-label">プレビュー</div><div class="info-box-value" style="color:var(--muted);font-size:14px">先頭20件</div></div>
+    </div>
+    <div style="background:var(--surface2);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:10px;line-height:2">
+      <div style="font-size:11px;font-weight:700;margin-bottom:4px;color:var(--ink2)">📋 列マッピング確認</div>
+      ${mappingHtml}
+    </div>`;
+
+  document.getElementById('extPreviewTable').innerHTML = preview.slice(0, 20).map(r => `
+    <tr>
+      <td class="mono" style="padding:8px 12px;font-size:11px;border-bottom:1px solid var(--rule)">${r.sku}</td>
+      <td style="padding:8px 12px;font-size:11px;border-bottom:1px solid var(--rule);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</td>
+      <td class="mono text-right" style="padding:8px 12px;font-size:11px;border-bottom:1px solid var(--rule);font-weight:700;color:var(--blue)">${r.stock}</td>
+    </tr>`).join('');
+
+  const getExt = (row, key) => extMapping[key] !== null && extMapping[key] !== undefined ? (row[extMapping[key]] || '') : '';
+  const getExtNum = (row, key) => extMapping[key] !== null && extMapping[key] !== undefined ? (parseInt(row[extMapping[key]]) || 0) : 0;
+  window._extImportData = extParsedRows.map(row => ({
+    sku:   getExt(row, 'sku'),
+    jan:   getExt(row, 'jan'),
+    name:  getExt(row, 'name'),
+    color: getExt(row, 'color') || extractColor(getExt(row, 'name')),
+    size:  getExt(row, 'size')  || extractSize(getExt(row, 'name')),
+    price: Number(getExt(row, 'price').replace(/[,，￥¥\s　]/g, '')) || 0,
+    stock: getExtNum(row, 'stock'),
+  }));
+}
+
+function extImport() {
+  const data = window._extImportData;
+  if (!data || data.length === 0) { toast('データがありません', 'error'); return; }
+
+  const totalStock = data.reduce((s, r) => s + r.stock, 0);
+  const cfg = EXT_CHANNELS[extChannel];
+
+  // チャネル在庫を更新
+  S.channels[extChannel] = data.length;
+
+  // 最終取込情報を保存
+  const key = `hub_ext_${extChannel}`;
+  const info = {
+    time: new Date().toLocaleString('ja-JP'),
+    sku: data.length,
+    totalStock,
+    rows: data,
+  };
+  localStorage.setItem(key, JSON.stringify(info));
+
+  // 商品一覧ページの該当チャネル在庫を更新
+  if (S.products && S.products.length > 0) {
+    let matched = 0, unmatched = 0;
+    data.forEach(d => {
+      // 照合優先順位: ① JANコード → ② 品番(SKU) → ③ 商品名
+      const match = S.products.find(p =>
+        (d.jan  && p.jan   && d.jan  === p.jan)   ||   // ① JANで照合
+        (d.sku  && p.itemNo && d.sku === p.itemNo) ||   // ② 品番で照合
+        (d.name && p.name  && d.name === p.name)        // ③ 商品名で照合
+      );
+      if (match) {
+        match[extChannel] = d.stock;
+        // 固定マッピングで取れた付加情報も補完
+        if (d.jan   && !match.jan)   match.jan   = d.jan;
+        if (d.color && !match.color) match.color = d.color;
+        if (d.size  && !match.size)  match.size  = d.size;
+        if (d.price && !match.price) match.price = d.price;
+        matched++;
+      } else {
+        unmatched++;
+      }
+    });
+    // 一致しなかった行は新規追加（楽天はsku=nullなのでjanをitemNoに使う）
+    data.forEach(d => {
+      const keyVal = d.sku || d.jan || '';
+      if (!keyVal) return;
+      const exists = S.products.find(p =>
+        (d.jan && p.jan && d.jan === p.jan) ||
+        (d.sku && p.itemNo && d.sku === p.itemNo)
+      );
+      if (!exists) {
+        S.products.push({
+          itemNo: d.sku || '', name: d.name || '',
+          jan:   d.jan   || '',
+          color: d.color || extractColor(d.name||''),
+          size:  d.size  || extractSize(d.name||''),
+          price: d.price || 0,
+          warehouse:0, shopify:0, daikanyama:0, nagoya:0, kobe:0, bazar:0, linegift:0,
+          zozo:0, amazon:0, rakuten:0,
+          [extChannel]: d.stock,
+        });
+      }
+    });
+    localStorage.setItem('hub_products', JSON.stringify(S.products));
+    // 照合結果をトーストに追加表示
+    window._matchResult = { matched, unmatched, total: data.length };
+  }
+
+  save();
+  closeModal('externalCsvModal');
+  refreshOverview();
+  updateExtImportBadges();
+  const mr = window._matchResult;
+  const matchMsg = mr ? `（${mr.matched}件一致 / ${mr.unmatched}件未一致）` : '';
+  toast(`✅ ${cfg.icon} ${cfg.label} CSV取込完了 — ${data.length.toLocaleString()} SKU / 在庫合計${totalStock.toLocaleString()}点${matchMsg}`, 'success');
+  // クラウド同期（GAS設定済みの場合）
+  pushChannelStockToCloud(data, extChannel);
+}
+
+function updateExtImportBadges() {
+  ['zozo', 'rakuten', 'amazon'].forEach(ch => {
+    const key = `hub_ext_${ch}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    const info = JSON.parse(raw);
+    // lastImportInfo欄に追記は複雑なので省略、トーストのみ
+  });
+}
+
+function loadExtSample() {
+  const samples = {
+    zozo: `CS品番,商品名,カラー,サイズ,プロパー価格（税抜）,販売可能数合計\nKD-001-90,フラワーワンピース,ピンク,90cm,4800,45\nKD-001-100,フラワーワンピース,ピンク,100cm,4800,38\nKD-002-80,ストライプTシャツ,ネイビー,80cm,2400,120\nKD-003-90,デニムパンツ,グレー,90cm,3800,62\nKD-004-100,ニットカーディガン,ホワイト,100cm,5200,3\nKD-005-80,ボーダーロンT,ネイビー,80cm,2800,200`,
+    rakuten: `JANコード,商品名,受注可能倉庫在庫\n4900000000001,フラワーワンピース 90cm,45\n4900000000002,フラワーワンピース 100cm,38\n4900000000003,ストライプTシャツ 80cm,120\n4900000000004,デニムパンツ 90cm,62\n4900000000005,ニットカーディガン 100cm,3`,
+    amazon: `出品者SKU\tASIN\titem-name\tquantity\nKD-001-90\tB09ABC001\tフラワーワンピース 90cm\t45\nKD-001-100\tB09ABC002\tフラワーワンピース 100cm\t38\nKD-002-80\tB09ABC003\tストライプTシャツ 80cm\t120\nKD-003-90\tB09ABC004\tデニムパンツ 90cm\t62\nKD-004-100\tB09ABC005\tニットカーディガン 100cm\t3`,
+  };
+  const sample = samples[extChannel];
+  const isTab = extChannel === 'amazon';
+  const parsed = isTab ? parseTSV(sample) : parseCSV(sample);
+  extColumns = parsed.headers;
+  extParsedRows = parsed.rows;
+  extMapping = autoDetectExtColumns(extColumns, extChannel);
+  toast(`🎯 ${EXT_CHANNELS[extChannel].label} サンプルデータ ${extParsedRows.length}件を読み込みました`, 'success');
+  document.getElementById('extDropTitle').textContent = `✅ サンプルデータ（${extParsedRows.length} SKU）`;
+  document.getElementById('extDropSub').textContent = `実際の運用では管理画面からCSVをダウンロードしてください`;
+}
+
+// ════════════════════════════════
+// SMAREGI CSV IMPORT
+// ════════════════════════════════
+let smStep=1;
+let smParsedRows=[];
+let smColumns=[];
+let smMapping={code:null,name:null,warehouse:null,store:null,online:null};
+
+// スマレジの標準列名パターン
+const SM_PATTERNS={
+  code: ['商品コード','商品ｺｰﾄﾞ','sku','product_code','品番'],
+  name: ['商品名','商品名称','name','product_name'],
+  warehouse: ['倉庫','倉庫在庫','倉庫_在庫','在庫(倉庫)','warehouse','wh在庫'],
+  store:     ['店舗','店舗在庫','shop在庫','在庫(店舗)','store','店頭在庫'],
+  online:    ['オンライン','online','web在庫','ネット在庫','EC在庫','在庫(オンライン)','shopify'],
+};
+// JANコードのパターン（スマレジ標準列名）
+const JAN_PATTERNS = ['JANコード','JAN','janコード','jan','バーコード','EAN','ean'];
+
+function autoDetectColumns(headers){
+  const mapping={code:null,name:null,warehouse:null,store:null,online:null};
+  headers.forEach((h,i)=>{
+    const hl=h.toLowerCase().trim();
+    Object.entries(SM_PATTERNS).forEach(([key,patterns])=>{
+      if(mapping[key]===null){
+        if(patterns.some(p=>hl.includes(p.toLowerCase()))){
+          mapping[key]=i;
+        }
+      }
+    });
+  });
+  // 「在庫」単独は倉庫か総在庫にフォールバック
+  if(mapping.warehouse===null){
+    const stockIdx=headers.findIndex(h=>h.trim()==='在庫'||h.trim()==='総在庫');
+    if(stockIdx>=0) mapping.warehouse=stockIdx;
+  }
+  return mapping;
+}
+
+// スマレジCSVのマッピング列ラベル（商品一覧用の追加フィールド案内）
+function getSmaregiExtraColumnHints(headers) {
+  const hints = [];
+  const check = (label, patterns) => {
+    const found = headers.some(h => patterns.some(p => h.toLowerCase().includes(p.toLowerCase())));
+    hints.push({ label, found });
+  };
+  check('JANコード列', ['JANコード','JAN','バーコード','EAN']);
+  check('カラー列', ['カラー','color','色']);
+  check('サイズ列', ['サイズ','size','寸法']);
+  check('価格列',   ['売価','販売価格','単価','price']);
+  check('代官山列', ['代官山']);
+  check('名古屋列', ['名古屋']);
+  check('神戸列',   ['神戸']);
+  check('bazar列',  ['bazar','バザー']);
+  check('LINE列',   ['line']);
+  return hints;
+}
+
+// ════════════════════════════════
+// 文字コード自動判定読み込み
+// ════════════════════════════════
+function readFileAutoEncoding(file, callback) {
+  // まずバイナリで読んでShift-JISかどうか判定してから再読み込み
+  const binReader = new FileReader();
+  binReader.onload = ev => {
+    const arr = new Uint8Array(ev.target.result);
+    // Shift-JIS判定: 0x81-0x9F or 0xE0-0xFC が含まれていればSJIS
+    let isSJIS = false;
+    for (let i = 0; i < Math.min(arr.length, 2000); i++) {
+      const b = arr[i];
+      if ((b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC)) {
+        isSJIS = true; break;
+      }
+    }
+    // BOM確認 (UTF-8: EF BB BF, UTF-16: FF FE)
+    const isUTF8BOM = arr[0]===0xEF && arr[1]===0xBB && arr[2]===0xBF;
+    const isUTF16  = arr[0]===0xFF && arr[1]===0xFE;
+    const encoding = isUTF8BOM ? 'UTF-8' : isUTF16 ? 'UTF-16LE' : isSJIS ? 'Shift-JIS' : 'UTF-8';
+
+    const txtReader = new FileReader();
+    txtReader.onload = ev2 => {
+      let text = ev2.target.result;
+      // BOM除去
+      text = text.replace(/^\uFEFF/, '');
+      callback(text);
+    };
+    txtReader.onerror = () => { toast('ファイルの読み込みに失敗しました', 'error'); };
+    txtReader.readAsText(file, encoding);
+  };
+  binReader.onerror = () => { toast('ファイルの読み込みに失敗しました', 'error'); };
+  binReader.readAsArrayBuffer(file);
+}
+
+function parseCSV(text){
+  // BOM除去
+  text=text.replace(/^\uFEFF/,'');
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2) return {headers:[],rows:[]};
+  const parse=line=>{
+    const r=[];let cur='';let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){inQ=!inQ;}
+      else if(c===','&&!inQ){r.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    r.push(cur.trim());
+    return r;
+  };
+  // ヘッダーの列名を確実にトリム（全角スペース・改行・BOMなど含む）
+  const headers=parse(lines[0]).map(h=>h.replace(/^[\s\u3000\uFEFF\r\n]+|[\s\u3000\uFEFF\r\n]+$/g,''));
+  const rows=lines.slice(1).map(l=>parse(l)).filter(r=>r.some(c=>c));
+  return {headers,rows};
+}
+
+function openSmaregiCsvModal(){
+  smStep=1;smParsedRows=[];smColumns=[];
+  smMapping={}; // renderMappingUI内で初期化
+  document.getElementById('smCsvFileInput').value='';
+  showSmStep(1);
+  openModal('smaregiCsvModal');
+}
+function showSmaregiGuide(){ openModal('smGuideModal'); }
+
+function showSmStep(n){
+  smStep=n;
+  // pane1と3だけ表示制御（2はスキップ）
+  document.getElementById('smPane1').style.display = n===1 ? 'block' : 'none';
+  document.getElementById('smPane2').style.display = 'none';
+  document.getElementById('smPane3').style.display = n===3 ? 'block' : 'none';
+  // ステップ表示
+  const s1 = document.getElementById('smStep1');
+  const s3 = document.getElementById('smStep3');
+  if(n===1){ s1.style.background='var(--mint)'; s1.style.color='white'; s3.style.background='var(--surface2)'; s3.style.color='var(--muted)'; }
+  if(n===3){ s1.style.background='#d1fae5'; s1.style.color='white'; s3.style.background='var(--mint)'; s3.style.color='white'; }
+  document.getElementById('smBtnPrev').style.display = n>1 ? 'inline-flex' : 'none';
+  document.getElementById('smBtnNext').style.display = n<3 ? 'inline-flex' : 'none';
+  document.getElementById('smBtnImport').style.display = n===3 ? 'inline-flex' : 'none';
+}
+
+function smNext(){
+  if(smStep===1){
+    if(smParsedRows.length===0){toast('CSVファイルを選択してください','error');return;}
+    // マッピング固定 → ステップ2をスキップして直接プレビューへ
+    applyFixedSmaregiMapping();
+    renderPreview();
+    showSmStep(3);
+  }
+}
+function smPrev(){ showSmStep(1); }
+
+function handleSmaregiCsv(e){
+  const file=e.target.files[0];if(!file)return;
+  readFileAutoEncoding(file, text=>{
+    if(!text){toast('ファイルを読み込めませんでした','error');return;}
+    // タブ区切り（TSV）かカンマ区切り（CSV）かを自動判定
+    const firstLine = text.split(/\r?\n/)[0] || '';
+    const tabCount   = (firstLine.match(/\t/g) || []).length;
+    const commaCount = (firstLine.match(/,/g)  || []).length;
+    const parsed = tabCount > commaCount ? parseTSV(text) : parseCSV(text);
+    const {headers, rows} = parsed;
+    if(headers.length===0){toast('CSVを読み込めませんでした。ファイルを確認してください','error');return;}
+    smColumns=headers;
+    smParsedRows=rows;
+    applyFixedSmaregiMapping();
+    toast(`📂 ${rows.length}行を読み込みました（${tabCount > commaCount ? 'タブ' : 'カンマ'}区切り / ${headers.length}列 / 固定マッピング適用済み）`,'success');
+    document.querySelector('#smDropZone .upload-title').textContent=`✅ ${file.name}`;
+    document.querySelector('#smDropZone .upload-sub').textContent=`${rows.length}行 × ${headers.length}列`;
+  });
+}
+
+// ════════════════════════════════
+// スマレジ列名マッチング方式（列名で検索するため列順変更に強い）
+// ════════════════════════════════
+const SMAREGI_COL_PATTERNS = {
+  code:       ['品番'],
+  jan:        ['商品コード'],
+  name:       ['商品名'],
+  color:      ['カラー'],
+  size:       ['サイズ'],
+  price:      ['商品単価','売価','販売価格','単価','定価'],
+  warehouse:  ['ゼネラルサービス盛岡'],
+  online:     ['panpantutu online'],
+  daikanyama: ['代官山'],
+  nagoya:     ['名古屋'],
+  kobe:       ['神戸'],
+  bazar:      ['bazar et panpantutu','bazar'],
+  linegift:   ['lineギフトの在庫数','lineぎふとの在庫数','lineギフト','linegift'],
+};
+
+function applyFixedSmaregiMapping() {
+  const clean = s => s.toLowerCase().replace(/[\s　\r\n\t\uFEFF]/g, '');
+  smMapping = {};
+  Object.entries(SMAREGI_COL_PATTERNS).forEach(([key, patterns]) => {
+    smMapping[key] = null;
+    smColumns.forEach((h, i) => {
+      if (smMapping[key] !== null) return;
+      const hl = clean(h);
+      if (patterns.some(p => hl.includes(clean(p)))) {
+        smMapping[key] = i;
+      }
+    });
+    if (smMapping[key] === null) console.warn(`[マッピング未検出] ${key}`);
+    else console.log(`[マッピング] ${key} → 列${smMapping[key]+1}「${smColumns[smMapping[key]]}」`);
+  });
+  // 未検出の在庫列をトーストで通知
+  const stockKeys = ['warehouse','online','daikanyama','nagoya','kobe','bazar','linegift'];
+  const missed = stockKeys.filter(k => smMapping[k] === null);
+  if (missed.length > 0) {
+    const names = {warehouse:'倉庫',online:'オンライン',daikanyama:'代官山',nagoya:'名古屋',kobe:'神戸',bazar:'bazar',linegift:'LINEギフト'};
+    setTimeout(() => toast(`⚠️ 列が見つかりませんでした: ${missed.map(k=>names[k]).join('、')}`, 'warn'), 500);
+  }
+}
+
+// 全フィールド定義（JAN・価格・カラー・サイズ・全店舗）
+const SM_EXTENDED_FIELDS = [
+  {key:'code',       label:'商品コード（品番）', req:true,  section:'base',  patterns:['商品コード','品番','sku','product_code','商品ｺｰﾄﾞ']},
+  {key:'name',       label:'商品名',             req:true,  section:'base',  patterns:['商品名','name','商品名称']},
+  {key:'jan',        label:'JANコード',          req:false, section:'base',  patterns:['jan','janコード','バーコード','ean','barcode','jan_code']},
+  {key:'price',      label:'価格（売価）',        req:false, section:'base',  patterns:['売価','販売価格','単価','price','定価','税込価格','Price']},
+  {key:'color',      label:'カラー',             req:false, section:'base',  patterns:['カラー','color','色','カラーコード','カラー名']},
+  {key:'size',       label:'サイズ',             req:false, section:'base',  patterns:['サイズ','size','寸法','サイズ名']},
+  {key:'warehouse',  label:'倉庫 在庫',          req:false, section:'stock', patterns:['倉庫','wh','warehouse']},
+  {key:'online',     label:'オンライン 在庫',    req:false, section:'stock', patterns:['オンライン','online','ec在庫','web在庫','shopify']},
+  {key:'daikanyama', label:'代官山 在庫',        req:false, section:'stock', patterns:['代官山']},
+  {key:'nagoya',     label:'名古屋 在庫',        req:false, section:'stock', patterns:['名古屋']},
+  {key:'kobe',       label:'神戸 在庫',          req:false, section:'stock', patterns:['神戸']},
+  {key:'bazar',      label:'bazar 在庫',         req:false, section:'stock', patterns:['bazar','バザー']},
+  {key:'linegift',   label:'LINEギフト 在庫',   req:false, section:'stock', patterns:['lineギフト','linegift','ラインギフト','lineｷﾞﾌﾄ']},
+];
+
+function renderMappingUI(){
+  // 自動検出（全角・半角スペース・制御文字を除去して比較）
+  smMapping = {};
+  const cleanStr = s => s.toLowerCase()
+    .replace(/[\s　\r\n\t]/g, '')   // スペース・改行・タブを除去
+    .replace(/[\u200B-\u200D\uFEFF]/g, ''); // ゼロ幅スペース等を除去
+
+  SM_EXTENDED_FIELDS.forEach(f => {
+    smMapping[f.key] = null;
+    smColumns.forEach((h, i) => {
+      if (smMapping[f.key] !== null) return;
+      const hl = cleanStr(h);
+      if (f.patterns.some(p => hl.includes(cleanStr(p)))) {
+        smMapping[f.key] = i;
+      }
+    });
+  });
+
+  const blankOpt = '<option value="">— 使用しない —</option>';
+  const makeSelect = (key) => {
+    const detected = smMapping[key] !== null;
+    const borderColor = detected ? 'var(--mint)' : 'var(--rule)';
+    const badge = detected ? `<span style="font-size:9px;background:var(--mint);color:white;padding:1px 5px;border-radius:999px;margin-left:4px;font-weight:700">自動検出</span>` : '';
+    return `<div style="position:relative">
+      <select id="smMap_${key}" style="width:100%;font-size:11px;padding:6px 8px;border:1.5px solid ${borderColor};border-radius:var(--r-sm);background:${detected?'var(--mint-dim)':'white'}">
+        ${blankOpt}
+        ${smColumns.map((h,i)=>`<option value="${i}" ${smMapping[key]===i?'selected':''}>${h}</option>`).join('')}
+      </select>
+    </div>`;
+  };
+
+  // CSVの全列を表示
+  const allColsHtml = smColumns.map((h,i)=>
+    `<span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:4px;background:var(--surface2);font-size:10px;font-family:'DM Mono',monospace;border:1px solid var(--rule)">${i+1}. ${h}</span>`
+  ).join('');
+
+  const baseFields  = SM_EXTENDED_FIELDS.filter(f => f.section === 'base');
+  const stockFields = SM_EXTENDED_FIELDS.filter(f => f.section === 'stock');
+
+  document.getElementById('smMappingArea').innerHTML = `
+    <details style="margin-bottom:14px;">
+      <summary style="cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);padding:8px 10px;background:var(--surface2);border-radius:var(--r-sm);border:1px solid var(--rule)">
+        📋 CSVの列名一覧を表示（全${smColumns.length}列）— クリックで展開
+      </summary>
+      <div style="padding:10px;background:var(--amber-dim);border:1px solid #f7d8a0;border-top:none;border-radius:0 0 var(--r-sm) var(--r-sm);line-height:2.2">
+        ${allColsHtml}
+      </div>
+    </details>
+
+    <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--rule)">🏷️ 商品基本情報</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+      ${baseFields.map(f=>`
+        <div>
+          <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:4px">
+            ${f.label}${f.req?' <span style="color:var(--coral)">*</span>':''}
+            ${smMapping[f.key]!==null?'<span style="font-size:9px;background:var(--mint);color:white;padding:1px 5px;border-radius:999px;margin-left:4px;font-weight:700;vertical-align:middle">✓ 自動</span>':''}
+          </label>
+          ${makeSelect(f.key)}
+        </div>`).join('')}
+    </div>
+
+    <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--rule)">🏪 店舗・チャネル別在庫数</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+      ${stockFields.map(f=>`
+        <div>
+          <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:4px">
+            ${f.label}
+            ${smMapping[f.key]!==null?'<span style="font-size:9px;background:var(--mint);color:white;padding:1px 5px;border-radius:999px;margin-left:4px;font-weight:700;vertical-align:middle">✓ 自動</span>':''}
+          </label>
+          ${makeSelect(f.key)}
+        </div>`).join('')}
+    </div>
+  `;
+}
+
+function collectMapping(){
+  SM_EXTENDED_FIELDS.forEach(f=>{
+    const el=document.getElementById(`smMap_${f.key}`);
+    smMapping[f.key]=el&&el.value!==''?parseInt(el.value):null;
+  });
+}
+
+function renderPreview(){
+  const preview=smParsedRows.slice(0,200).map(row=>({
+    code:  smMapping.code!==null    ? row[smMapping.code]||''  : '—',
+    name:  smMapping.name!==null    ? row[smMapping.name]||''  : '—',
+    wh:    smMapping.warehouse!==null? parseInt(row[smMapping.warehouse])||0 : 0,
+    store: smMapping.store!==null   ? parseInt(row[smMapping.store])||0    : 0,
+    online:smMapping.online!==null  ? parseInt(row[smMapping.online])||0   : 0,
+  }));
+
+  const totalWh=preview.reduce((s,r)=>s+r.wh,0);
+  const totalSt=preview.reduce((s,r)=>s+r.store,0);
+  const totalOn=preview.reduce((s,r)=>s+r.online,0);
+
+  // 固定マッピングの確認表示
+  const labels = {code:'品番', jan:'JANコード', name:'商品名', color:'カラー', size:'サイズ', price:'価格', warehouse:'倉庫在庫', online:'オンライン', daikanyama:'代官山', nagoya:'名古屋', kobe:'神戸', bazar:'bazar', linegift:'LINEギフト'};
+  const mapSummary = Object.entries(SMAREGI_FIXED_INDEX).map(([key, idx]) => {
+    const colName = idx !== null && idx !== undefined ? smColumns[idx] : null;
+    return `<span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700;margin:2px;background:${colName?'var(--mint-dim)':'var(--coral-dim)'};color:${colName?'var(--mint)':'var(--coral)'}">
+      ${colName?'✅':'❌'} ${labels[key]||key}${colName?' → '+colName:'（列なし）'}
+    </span>`;
+  }).join('');
+
+  document.getElementById('smPreviewSummary').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;">
+      <div class="info-box"><div class="info-box-label">総SKU数</div><div class="info-box-value" style="color:var(--mint)">${smParsedRows.length.toLocaleString()}</div></div>
+      <div class="info-box"><div class="info-box-label">倉庫在庫合計</div><div class="info-box-value" style="color:var(--blue)">${totalWh.toLocaleString()}</div></div>
+      <div class="info-box"><div class="info-box-label">店舗在庫合計</div><div class="info-box-value" style="color:var(--amber)">${totalSt.toLocaleString()}</div></div>
+      <div class="info-box"><div class="info-box-label">オンライン合計</div><div class="info-box-value" style="color:var(--purple)">${totalOn.toLocaleString()}</div></div>
+    </div>
+    <div style="background:var(--surface2);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:10px;line-height:2">
+      <div style="font-size:11px;font-weight:700;margin-bottom:6px;color:var(--ink2)">📋 列マッピング確認</div>
+      ${mapSummary}
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">プレビュー（先頭${Math.min(preview.length,20)}件）</div>
+  `;
+
+  document.getElementById('smPreviewTable').innerHTML=preview.slice(0,20).map(r=>`
+    <tr>
+      <td class="mono" style="padding:8px 12px;font-size:11px;border-bottom:1px solid var(--rule)">${r.code}</td>
+      <td style="padding:8px 12px;font-size:11px;border-bottom:1px solid var(--rule);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</td>
+      <td class="mono text-right" style="padding:8px 12px;font-size:11px;border-bottom:1px solid var(--rule);color:var(--blue)">${r.wh}</td>
+      <td class="mono text-right" style="padding:8px 12px;font-size:11px;border-bottom:1px solid var(--rule);color:var(--amber)">${r.store}</td>
+      <td class="mono text-right" style="padding:8px 12px;font-size:11px;border-bottom:1px solid var(--rule);color:var(--purple)">${r.online}</td>
+    </tr>
+  `).join('');
+
+  // キャッシュ
+  window._smImportData=smParsedRows.map(row=>({
+    code:  smMapping.code!==null      ? row[smMapping.code]||''            : '',
+    name:  smMapping.name!==null      ? row[smMapping.name]||''            : '',
+    wh:    smMapping.warehouse!==null  ? parseInt(row[smMapping.warehouse])||0 : 0,
+    store: smMapping.daikanyama!==null ? (parseInt(row[smMapping.daikanyama])||0)+(parseInt(row[smMapping.nagoya])||0)+(parseInt(row[smMapping.kobe])||0) : 0,
+    online:smMapping.online!==null     ? parseInt(row[smMapping.online])||0    : 0,
+  }));
+
+  // 追加列の検出状況を表示
+  const hints = getSmaregiExtraColumnHints(smColumns);
+  const hintHtml = hints.map(h =>
+    `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700;background:${h.found?'var(--mint-dim)':'var(--surface2)'};color:${h.found?'var(--mint)':'var(--muted)'};margin:2px">${h.found?'✅':'—'} ${h.label}</span>`
+  ).join('');
+  const hintDiv = document.createElement('div');
+  hintDiv.style.cssText = 'margin-top:12px;padding:10px 14px;background:var(--surface2);border-radius:var(--r-sm);font-size:11px;';
+  hintDiv.innerHTML = '<div style="font-weight:700;margin-bottom:6px;color:var(--ink2)">📋 商品一覧ページ用の列検出状況:</div>' + hintHtml +
+    '<div style="margin-top:8px;color:var(--muted)">検出されなかった列はCSVに含まれていないか、列名が異なります。スマレジの設定でCSV出力項目を追加することで対応できます。</div>';
+  document.getElementById('smPreviewSummary').appendChild(hintDiv);
+}
+
+function smImport(){
+  const data=window._smImportData;
+  if(!data||data.length===0){toast('データがありません','error');return;}
+
+  // チャネル集計
+  const totalWh=data.reduce((s,r)=>s+r.wh,0);
+  const totalSt=data.reduce((s,r)=>s+r.store,0);
+  const totalOn=data.reduce((s,r)=>s+r.online,0);
+
+  S.channels.warehouse=totalWh;
+  S.channels.store=totalSt;
+  S.channels.shopify=totalOn;
+  document.getElementById('kpiSku').textContent=data.length.toLocaleString();
+
+  // 最終取込情報を保存
+  const now=new Date();
+  S.smaregiLastImport={
+    time: now.toLocaleString('ja-JP'),
+    sku: data.length,
+    warehouse: totalWh,
+    store: totalSt,
+    online: totalOn,
+    rows: data,
+  };
+  localStorage.setItem('hub_smaregi_last', JSON.stringify(S.smaregiLastImport));
+
+  // 発注予測にも反映
+  if(S.forecast.length>0){
+    data.forEach(d=>{
+      const match=S.forecast.find(f=>f.sku===d.code||f.name===d.name);
+      if(match) match.stock=d.wh+d.store+d.online;
+    });
+    runForecastCalc();
+  }
+
+  // 商品一覧ページ用にデータを保存（マッピングUIで選択した列を直接使用）
+  const getVal = (row, key) => smMapping[key] !== null && smMapping[key] !== undefined ? (row[smMapping[key]] || '') : '';
+  const getNum = (row, key) => smMapping[key] !== null && smMapping[key] !== undefined ? (parseInt(row[smMapping[key]]) || 0) : 0;
+
+  const productData = smParsedRows.map(row => ({
+    code:       getVal(row, 'code'),
+    name:       getVal(row, 'name'),
+    jan:        getVal(row, 'jan'),
+    color:      getVal(row, 'color') || extractColor(getVal(row, 'name')),
+    size:       getVal(row, 'size')  || extractSize(getVal(row, 'name')),
+    price:      Number(getVal(row, 'price').replace(/[,，￥¥\s]/g, '')) || 0,
+    wh:         getNum(row, 'warehouse'),
+    online:     getNum(row, 'online'),
+    daikanyama: getNum(row, 'daikanyama'),
+    nagoya:     getNum(row, 'nagoya'),
+    kobe:       getNum(row, 'kobe'),
+    bazar:      getNum(row, 'bazar'),
+    linegift:   getNum(row, 'linegift'),
+  }));
+  buildProductsFromSmaregi(productData);
+
+  save();
+  closeModal('smaregiCsvModal');
+  refreshOverview();
+  showLastImportInfo();
+  toast(`✅ スマレジCSV取込完了 — ${data.length.toLocaleString()} SKU・倉庫${totalWh.toLocaleString()}点・店舗${totalSt.toLocaleString()}点`,'success');
+}
+
+function showLastImportInfo(){
+  const info=S.smaregiLastImport;
+  if(!info) return;
+  document.getElementById('lastImportInfo').style.display='block';
+  document.getElementById('lastImportTime').textContent=info.time;
+  document.getElementById('lastImportSummary').textContent=`${info.sku.toLocaleString()} SKU / 倉庫${info.warehouse.toLocaleString()}点 / 店舗${info.store.toLocaleString()}点 / オンライン${info.online.toLocaleString()}点`;
+}
+
+function loadSmaregiSample(){
+  // サンプルCSVを生成してパース
+  const sampleCsv=`商品コード,商品名,倉庫,店舗,オンライン
+KD-001-90,フラワーワンピース 90cm,45,12,8
+KD-001-100,フラワーワンピース 100cm,38,9,5
+KD-002-80,ストライプTシャツ 80cm,120,30,20
+KD-002-90,ストライプTシャツ 90cm,95,25,15
+KD-003-100,デニムパンツ 100cm,62,18,10
+KD-003-110,デニムパンツ 110cm,44,11,7
+KD-004-90,ニットカーディガン 90cm,3,1,0
+KD-004-100,ニットカーディガン 100cm,0,0,0
+KD-005-80,ボーダーロンT 80cm,200,55,35
+KD-005-90,ボーダーロンT 90cm,180,50,30
+KD-006-100,チェックシャツ 100cm,22,6,4
+KD-007-110,スカート 110cm,55,15,12
+KD-008-90,パーカー 90cm,8,2,1
+KD-009-80,レギンス 80cm,300,80,60
+KD-010-100,オーバーオール 100cm,15,4,2`;
+  const {headers,rows}=parseCSV(sampleCsv);
+  smColumns=headers;
+  smParsedRows=rows;
+  smMapping=autoDetectColumns(headers);
+  toast(`🎯 サンプルデータ 15SKUを読み込みました`,'success');
+  document.querySelector('#smDropZone .upload-title').textContent='✅ サンプルデータ（15 SKU）';
+  document.querySelector('#smDropZone .upload-sub').textContent='実際の運用ではスマレジからCSVをダウンロードしてください';
+}
+
+function runForecastCalc(){
+  // 在庫数を更新して発注優先度を再計算
+  const safetyDays=parseInt(document.getElementById('safetyDays').value)||30;
+  const leadDays=parseInt(document.getElementById('leadDays').value)||90;
+  S.forecast.forEach(f=>{
+    const dailyRate=f.pred/30;
+    f.daysLeft=dailyRate>0?Math.floor(f.stock/dailyRate):999;
+    f.priority=f.daysLeft<leadDays?'urgent':f.daysLeft<leadDays+safetyDays?'soon':'ok';
+    f.reorder=Math.max(0,Math.round(f.pred*(leadDays/30)+f.pred*(safetyDays/30)-f.stock));
+  });
+  S.forecast.sort((a,b)=>a.daysLeft-b.daysLeft);
+  if(document.getElementById('forecastResultCard').style.display!=='none') renderForecast();
+  document.getElementById('kpiForecastAlert').textContent=S.forecast.filter(f=>f.priority==='urgent').length;
+}
+
+// ════════════════════════════════
+// MODAL HELPERS
+// ════════════════════════════════
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+// ════════════════════════════════
+// TOAST
+// ════════════════════════════════
+function toast(msg,type=''){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;el.textContent=msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+
+// ════════════════════════════════
+// INIT
+// ════════════════════════════════
+S.smaregiLastImport = safeGetItem('hub_smaregi_last', null);
+
+// 起動時データ読込：GAS設定済みならsessionStorage → クラウド優先
+if (!S.products || S.products.length === 0) {
+  if (GAS_ENABLED) {
+    // sessionStorageにキャッシュがあればすぐ表示（バックグラウンドで最新を取得）
+    try {
+      const session = sessionStorage.getItem('hub_products_session');
+      if (session) S.products = JSON.parse(session);
+    } catch(e) { sessionStorage.removeItem('hub_products_session'); }
+  }
+  const cached = localStorage.getItem('hub_products');
+  if (cached && !GAS_ENABLED) {
+    S.products = safeGetItem('hub_products', []);
+  } else if (!GAS_ENABLED) {
+    // デモ用サンプルデータ（実際のCSV取込後は上書きされます）
+    const colors = ['ピンク','ネイビー','ホワイト','グレー','イエロー','ベージュ'];
+    const sizes  = ['70cm','80cm','90cm','100cm','110cm','120cm'];
+    const items  = [
+      {no:'KD-001', name:'フラワーワンピース', price:4800},
+      {no:'KD-002', name:'ストライプTシャツ',  price:2400},
+      {no:'KD-003', name:'デニムパンツ',        price:3800},
+      {no:'KD-004', name:'ニットカーディガン',  price:5200},
+      {no:'KD-005', name:'ボーダーロンT',       price:2800},
+      {no:'KD-006', name:'チェックシャツ',      price:3200},
+      {no:'KD-007', name:'フリースパーカー',    price:4400},
+      {no:'KD-008', name:'レギンス',            price:1800},
+    ];
+    S.products = [];
+    items.forEach(item => {
+      colors.slice(0,3).forEach(color => {
+        sizes.slice(1,5).forEach(size => {
+          const r = () => Math.floor(Math.random()*60);
+          const janBase = 49 + Math.floor(Math.random()*10);
+          const janCode = String(janBase) + String(Math.floor(Math.random()*10000000000)).padStart(10,'0');
+          const sizeCode = size.replace('cm','');
+          const colorCode = ['ピンク','ネイビー','ホワイト','グレー','イエロー','ベージュ'].indexOf(color);
+          S.products.push({
+            itemNo: `${item.no}-${String(colorCode+1).padStart(2,'0')}-${sizeCode}`,
+            jan: janCode,
+            name: item.name, color, size,
+            price: item.price,
+            warehouse: r(), shopify: Math.floor(r()/2),
+            daikanyama: Math.floor(r()/3), nagoya: Math.floor(r()/3), kobe: Math.floor(r()/3),
+            bazar: Math.floor(r()/5), linegift: Math.floor(r()/5),
+            zozo: Math.floor(r()/2), amazon: Math.floor(r()/3), rakuten: Math.floor(r()/3),
+          });
+        });
+      });
+    });
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// CLOUD SYNC — Google Apps Script 連携
+// ════════════════════════════════════════════════════════
+
+function openGasSettings() {
+  document.getElementById('gasUrlInput').value      = GAS_URL;
+  document.getElementById('gasUploaderInput').value = GAS_UPLOADER;
+  document.getElementById('gasTestResult').style.display = 'none';
+  openModal('gasModal');
+}
+
+function saveGasSettings() {
+  const url      = document.getElementById('gasUrlInput').value.trim();
+  const uploader = document.getElementById('gasUploaderInput').value.trim();
+  if (!url) { toast('URLを入力してください', 'error'); return; }
+  GAS_URL      = url;
+  GAS_UPLOADER = uploader;
+  GAS_ENABLED  = true;
+  localStorage.setItem('gas_url', url);
+  localStorage.setItem('gas_uploader', uploader);
+  closeModal('gasModal');
+  updateSyncStatus('connected');
+  toast('✅ クラウド共有を有効化しました。データを読み込んでいます...', 'success');
+  // 有効化直後に最新データを取得
+  loadFromCloud();
+}
+
+async function testGasConnection() {
+  const url = document.getElementById('gasUrlInput').value.trim();
+  if (!url) { toast('URLを入力してください', 'error'); return; }
+  if (!url.includes('script.google.com')) {
+    document.getElementById('gasTestResult').style.display = 'block';
+    document.getElementById('gasTestResult').innerHTML =
+      '<span style="color:var(--coral)">❌ URLの形式が正しくありません。<br>正しい形式: https://script.google.com/macros/s/xxx/exec</span>';
+    return;
+  }
+  const resEl = document.getElementById('gasTestResult');
+  resEl.style.display = 'block';
+  resEl.innerHTML = '🔄 接続確認中...';
+  try {
+    // GASはCORSの制限があるためno-modeで疎通確認後、実際のデータ取得で判定
+    const r = await fetch(url + '?action=ping', { mode: 'cors' });
+    const j = await r.json();
+    if (j.ok) {
+      resEl.innerHTML = '<span style="color:var(--mint);font-weight:700">✅ 接続成功！このURLは有効です。</span>';
+    } else {
+      resEl.innerHTML = '<span style="color:var(--coral)">❌ GASエラー: ' + (j.error||'不明') + '</span>';
+    }
+  } catch(e) {
+    // CORSエラーでもGASは動いている場合がある→URLが正しければ保存を許可
+    if (url.endsWith('/exec')) {
+      resEl.innerHTML = `<span style="color:var(--amber);font-weight:700">⚠️ ブラウザのCORS制限で直接確認できませんでしたが、URLの形式は正しいです。<br>「保存して有効化」して実際に同期してみてください。</span>`;
+    } else {
+      resEl.innerHTML = '<span style="color:var(--coral)">❌ URLが正しくありません。末尾が /exec になっているか確認してください。</span>';
+    }
+  }
+}
+
+function updateSyncStatus(state) {
+  const el  = document.getElementById('syncStatus');
+  const sub = document.getElementById('cloudBannerSub');
+  const banner = document.getElementById('cloudBanner');
+  if (state === 'connected') {
+    if (el) { el.innerHTML = '⬤ クラウド同期中'; el.style.color = 'var(--mint)'; }
+    if (sub) sub.textContent = '✅ クラウド接続中 — チーム全員と在庫を共有しています';
+    if (banner) banner.style.background = 'var(--mint-dim)';
+  } else if (state === 'syncing') {
+    if (el) { el.innerHTML = '↻ 同期中...'; el.style.color = 'var(--amber)'; }
+    if (sub) sub.textContent = '↻ クラウドと同期中...';
+  } else if (state === 'error') {
+    if (el) { el.innerHTML = '⬤ 同期エラー'; el.style.color = 'var(--coral)'; }
+    if (sub) sub.textContent = '⚠️ 同期エラー — 「共有設定を開く」でURLを確認してください';
+    if (banner) banner.style.background = '#fff5f5';
+  } else {
+    if (el) { el.innerHTML = '⬤ ローカル'; el.style.color = 'var(--muted)'; }
+    if (sub) sub.textContent = '設定するとチーム全員が同じデータを見られます';
+  }
+}
+
+// ── クラウドからデータ読み込み ──────────────────────────
+// GASへの送信キー（英語）とスプレッドシートのヘッダ（日本語）の両方に対応
+function parseProduct_(p) {
+  // GASがすでに変換済みキーで返すのでそのまま受け取る
+  return {
+    itemNo:     String(p.itemNo     || ''),
+    jan:        String(p.jan        || ''),
+    name:       String(p.name       || ''),
+    color:      String(p.color      || ''),
+    size:       String(p.size       || ''),
+    price:      Number(p.price)     || 0,
+    warehouse:  Number(p.warehouse) || 0,
+    shopify:    Number(p.shopify)   || 0,
+    daikanyama: Number(p.daikanyama)|| 0,
+    nagoya:     Number(p.nagoya)    || 0,
+    kobe:       Number(p.kobe)      || 0,
+    bazar:      Number(p.bazar)     || 0,
+    linegift:   Number(p.linegift)  || 0,
+    zozo:       Number(p.zozo)      || 0,
+    zozo_reserve: Number(p.zozo_reserve) || 0,
+    amazon:     Number(p.amazon)    || 0,
+    rakuten:    Number(p.rakuten)   || 0,
+    // 在庫金額（税抜・スマレジ計算値）
+    warehouse_amount:  Number(p.warehouse_amount)  || 0,
+    shopify_amount:    Number(p.shopify_amount)    || 0,
+    daikanyama_amount: Number(p.daikanyama_amount) || 0,
+    nagoya_amount:     Number(p.nagoya_amount)     || 0,
+    kobe_amount:       Number(p.kobe_amount)       || 0,
+    bazar_amount:      Number(p.bazar_amount)      || 0,
+    linegift_amount:   Number(p.linegift_amount)   || 0,
+  };
+}
+
+let _cloudSyncRunning = false;
+async function loadFromCloud(force) {
+  if (!GAS_ENABLED || !GAS_URL) return;
+  if (_cloudSyncRunning && !force) return; // 自動実行時のみ二重実行防止
+  _cloudSyncRunning = true;
+  updateSyncStatus('syncing');
+  try {
+    // 全件を1回で取得（ページング廃止）
+    const url = `${GAS_URL}?action=getData&offset=0&limit=99999`;
+    const se = document.getElementById('syncStatus');
+    if (se) se.textContent = '↻ 同期中...';
+
+    const r = await fetch(url, { mode: 'cors' });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error);
+    const d = j.data;
+
+    const allProducts  = (d.products || []).map(parseProduct_);
+    const metaData     = d.meta     || [];
+    const transitData  = d.transit  || [];
+    const ordersData   = d.orders   || [];
+    if (d.reserves)  S.reserves  = d.reserves;
+    if (d.shipments) S.shipments = d.shipments;
+
+    console.log('[Cloud] 取得件数:', allProducts.length, '/ total:', d.total);
+    if (allProducts.length > 0) {
+      console.log('[Cloud] サンプルキー:', Object.keys(allProducts[0]));
+      S.products = allProducts;
+      // sessionStorageに保存（タブを閉じるまで有効・容量5MB程度）
+      try {
+        sessionStorage.setItem('hub_products_session', JSON.stringify(allProducts));
+      } catch(e) {
+        // 容量超過の場合は先頭5000件のみ保存
+        try { sessionStorage.setItem('hub_products_session', JSON.stringify(allProducts.slice(0, 5000))); } catch(e2) {}
+      }
+    } else {
+      console.warn('[Cloud] 商品データが0件。GASのスプレッドシートとaction=getDataのレスポンスを確認してください。');
+    }
+    if (transitData.length > 0) { S.transit = transitData; localStorage.setItem('hub_transit', JSON.stringify(S.transit)); }
+    if (ordersData.length  > 0) { S.orders  = ordersData;  localStorage.setItem('hub_orders',  JSON.stringify(S.orders)); }
+
+    updateSyncStatus('connected');
+    if(typeof refreshOverview === 'function') refreshOverview();
+    if(typeof renderProducts  === 'function') renderProducts();
+    if(typeof renderReserves  === 'function') renderReserves();
+    if(typeof renderShipments === 'function') renderShipments();
+    if(typeof renderTransit   === 'function') renderTransit();
+    if(typeof renderOrders    === 'function') renderOrders();
+    if(typeof renderTimeline  === 'function') renderTimeline();
+
+    const now = new Date().toLocaleTimeString('ja-JP');
+    const seEl = document.getElementById('syncStatus'); if(seEl) seEl.title = '最終同期: ' + now;
+
+    // metaからスマレジ最終取込を反映
+    if (metaData.length > 0) {
+      const smMeta = [...metaData].reverse().find(m =>
+        m['チャネル'] === 'スマレジ' || m['チャネル'] === 'smaregi'
+      );
+      if (smMeta) {
+        const infoEl = document.getElementById('lastImportInfo');
+        const timeEl = document.getElementById('lastImportTime');
+        const summEl = document.getElementById('lastImportSummary');
+        if (infoEl) infoEl.style.display = 'block';
+        if (timeEl) timeEl.textContent = smMeta['日時'] || '';
+        if (summEl) summEl.textContent = `${Number(smMeta['合計件数']||0).toLocaleString()} SKU（☁️ クラウド同期済み）`;
+        localStorage.removeItem('hub_smaregi_last');
+      }
+    }
+
+    toast(`☁️ 同期完了 — ${allProducts.length.toLocaleString()}件取得`, 'success');
+  } catch(e) {
+    updateSyncStatus('error');
+    console.error('Cloud load error:', e);
+    toast('⚠️ クラウド取得失敗（ローカルデータを表示中）: ' + e.message, 'error');
+  } finally {
+    _cloudSyncRunning = false;
+  }
+}
+
+// ── クラウドへ商品データを送信（スマレジ取込後に呼ぶ） ──
+async function pushProductsToCloud(productData) {
+  if (!GAS_ENABLED || !GAS_URL) return;
+  updateSyncStatus('syncing');
+  try {
+    const r = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'uploadProducts',
+        rows: productData,
+        channel: 'smaregi',
+        uploader: GAS_UPLOADER || 'スマレジ担当',
+      })
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error);
+    updateSyncStatus('connected');
+    const d = j.data;
+    toast(`☁️ クラウドに保存しました（更新:${d.updated}件 新規:${d.added}件）`, 'success');
+  } catch(e) {
+    updateSyncStatus('error');
+    toast('⚠️ クラウド保存失敗（ローカルには保存済み）: ' + e.message, 'error');
+  }
+}
+
+// ── クラウドへ外部チャネル在庫を送信 ──────────────────
+async function pushChannelStockToCloud(rows, channel) {
+  if (!GAS_ENABLED || !GAS_URL) return;
+  updateSyncStatus('syncing');
+  try {
+    const r = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'uploadChannelStock',
+        rows,
+        channel,
+        uploader: GAS_UPLOADER || channel + '担当',
+      })
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error);
+    updateSyncStatus('connected');
+    const d = j.data;
+    toast(`☁️ クラウドに保存しました（一致:${d.matched}件 未一致:${d.unmatched}件）`, 'success');
+    // 最新データを再取得
+    setTimeout(loadFromCloud, 1000);
+  } catch(e) {
+    updateSyncStatus('error');
+    toast('⚠️ クラウド保存失敗（ローカルには保存済み）: ' + e.message, 'error');
+  }
+}
+
+// ── 取込履歴を表示 ────────────────────────────────────
+async function showMeta() {
+  openModal('metaModal');
+  if (!GAS_ENABLED || !GAS_URL) {
+    document.getElementById('metaTable').innerHTML =
+      '<div style="color:var(--muted);font-size:12px;padding:12px">クラウド設定が有効になっていません</div>';
+    return;
+  }
+  try {
+    const r = await fetch(GAS_URL + '?action=getMeta', { mode: 'cors' });
+    const j = await r.json();
+    const rows = j.data || [];
+    if (rows.length === 0) {
+      document.getElementById('metaTable').innerHTML = '<div style="color:var(--muted)">履歴なし</div>';
+      return;
+    }
+    document.getElementById('metaTable').innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr>
+          ${['日時','チャネル','合計件数','更新件数','新規件数','担当者'].map(h =>
+            `<th style="padding:8px 10px;text-align:left;background:var(--surface2);border-bottom:2px solid var(--rule);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">${h}</th>`
+          ).join('')}
+        </tr></thead>
+        <tbody>
+          ${rows.slice().reverse().slice(0,50).map(r => `<tr>
+            <td style="padding:8px 10px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px">${r['日時']||''}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid var(--rule);font-weight:700">${r['チャネル']||''}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid var(--rule);text-align:right">${Number(r['合計件数']||0).toLocaleString()}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid var(--rule);text-align:right;color:var(--mint)">${Number(r['更新件数']||0).toLocaleString()}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid var(--rule);text-align:right;color:var(--blue)">${Number(r['新規件数']||0).toLocaleString()}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid var(--rule);color:var(--muted)">${r['担当者']||''}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('metaTable').innerHTML = '<div style="color:var(--coral)">エラー: ' + e.message + '</div>';
+  }
+}
+
+// ── 起動時初期化 ──────────────────────────────────────
+window.addEventListener('load', function() {
+  refreshOverview();
+  showLastImportInfo();
+  renderTransit();
+  renderOrders();
+  renderTimeline();
+  updateOrderKpi();
+  setupDropZone('smDropZone', 'smCsvFileInput', handleSmaregiCsv);
+  setupDropZone('extDropZone', 'extCsvFileInput', handleExtCsv);
+  if (GAS_ENABLED) {
+    updateSyncStatus('connected');
+  }
+});
+
+// ドラッグ&ドロップ対応
+// ════════════════════════════════
+function setupDropZone(zoneId, inputId, handler) {
+  const zone = document.getElementById(zoneId);
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    // inputにファイルをセットしてイベント発火
+    const dt = new DataTransfer(); dt.items.add(file);
+    const input = document.getElementById(inputId);
+    input.files = dt.files;
+    handler({ target: input });
+  });
+}
+// setupDropZone は window.onload 内で呼び出し済み
+</script>
+
+<!-- GAS設定モーダル -->
+<div class="overlay" id="gasModal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head">
+      <div class="modal-title">⚙️ クラウド共有設定</div>
+      <button class="modal-close" onclick="closeModal('gasModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--mint-dim);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px;margin-bottom:16px;font-size:12px;line-height:1.8">
+        <div style="font-weight:700;color:var(--mint);margin-bottom:4px">📋 設定手順</div>
+        <ol style="margin-left:16px;color:var(--ink2)">
+          <li>Google Apps Script のコードをデプロイ（別途配布のgas_inventory.jsを使用）</li>
+          <li>デプロイ後に表示される「ウェブアプリのURL」をコピー</li>
+          <li>下のフィールドに貼り付けて「接続テスト」→「保存」</li>
+        </ol>
+      </div>
+      <div class="fg">
+        <label>Google Apps Script URL <span class="req">*</span></label>
+        <input type="text" id="gasUrlInput" placeholder="https://script.google.com/macros/s/xxxxx/exec" style="font-family:'DM Mono',monospace;font-size:11px">
+      </div>
+      <div class="fg">
+        <label>あなたの名前（取込履歴に表示）</label>
+        <input type="text" id="gasUploaderInput" placeholder="例：田中（スマレジ担当）">
+      </div>
+      <div id="gasTestResult" style="margin-top:8px;font-size:12px;display:none"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('gasModal')">キャンセル</button>
+      <button class="btn btn-ghost" onclick="testGasConnection()">🔗 接続テスト</button>
+      <button class="btn btn-primary" onclick="saveGasSettings()">保存して有効化</button>
+    </div>
+  </div>
+</div>
+
+<!-- 取込履歴モーダル -->
+<div class="overlay" id="metaModal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-head">
+      <div class="modal-title">📋 取込履歴</div>
+      <button class="modal-close" onclick="closeModal('metaModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="metaTable">読み込み中...</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
