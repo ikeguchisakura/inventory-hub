@@ -1320,6 +1320,18 @@ function renderReserves() {
     if (r.channel === 'ZOZO') { groupMap[key].zozo = r; groupMap[key].csSku = r.csSku; }
     if (r.channel === '楽天') groupMap[key].rakuten = r;
   });
+
+  // S.productsから自社の商品名・カラー・サイズで上書き（品番で紐付け）
+  const productMap = {};
+  (S.products || []).forEach(p => { if (p.itemNo) productMap[p.itemNo] = p; });
+  Object.values(groupMap).forEach(g => {
+    const p = productMap[g.csSku];
+    if (p) {
+      g.name  = p.name  || g.name;
+      g.color = p.color || g.color;
+      g.size  = p.size  || g.size;
+    }
+  });
   const rows = Object.values(groupMap).filter(g => {
     const total = (g.zozo?.orderQty||0) + (g.rakuten?.orderQty||0);
     if (reserveOrderFilter === 'zero')    return total === 0;
@@ -1385,6 +1397,13 @@ function exportReserveCsv() {
     if (!groupMap[key]) groupMap[key] = { csSku: r.csSku, name: r.name, color: r.color, size: r.size, zozo: null, rakuten: null };
     if (r.channel === 'ZOZO') { groupMap[key].zozo = r; groupMap[key].csSku = r.csSku; }
     if (r.channel === '楽天') groupMap[key].rakuten = r;
+  });
+  // S.productsから自社の商品名・カラー・サイズで上書き
+  const productMap = {};
+  (S.products || []).forEach(p => { if (p.itemNo) productMap[p.itemNo] = p; });
+  Object.values(groupMap).forEach(g => {
+    const p = productMap[g.csSku];
+    if (p) { g.name = p.name || g.name; g.color = p.color || g.color; g.size = p.size || g.size; }
   });
   const rows = Object.values(groupMap);
   const headers = ['品番','商品名','カラー','サイズ','ZO受付数','ZO受注数','ZO残枠','楽受付数','楽受注数','楽残枠','合計受注数','お届け予定日'];
