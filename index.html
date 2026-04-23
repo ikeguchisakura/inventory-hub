@@ -2082,8 +2082,8 @@ function renderProducts() {
     }
     // 工場出荷中フィルター
     if (shipQtyFilter !== 'all') {
-      const sKey = `${p.itemNo||''}__${p.color||''}__${p.size||''}`;
-      const sQty = (S.shipments||[]).filter(s => `${s.itemNo||''}__${s.color||''}__${s.size||''}` === sKey).reduce((sum,s)=>sum+(s.qty||0),0);
+      const sKey = p.itemNo || '';
+      const sQty = (S.shipments||[]).filter(s => (s.itemNo||'') === sKey).reduce((sum,s)=>sum+(s.qty||0),0);
       if (shipQtyFilter === 'zero'    && sQty > 0)  return false;
       if (shipQtyFilter === 'nonzero' && sQty === 0) return false;
     }
@@ -2132,9 +2132,11 @@ function renderProducts() {
   const thSortHover = 'onmouseover="this.style.color=\'var(--ink)\'" onmouseout="this.style.color=\'var(--muted)\'"';
 
   // 品番+サイズ+カラーで出荷中合計を計算するマップを作成
+  // 品番のみでマッチング（カラー・サイズの表記揺れを避けるため）
   const shipmentMap = {};
   (S.shipments || []).forEach(s => {
-    const key = `${s.itemNo||''}__${s.color||''}__${s.size||''}`;
+    const key = s.itemNo || '';
+    if (!key) return;
     shipmentMap[key] = (shipmentMap[key] || 0) + (s.qty || 0);
   });
 
@@ -2192,7 +2194,7 @@ function renderProducts() {
     const totalCls = total === 0 ? 'sc-out' : total <= 10 ? 'sc-low' : 'sc-ok';
     const priceNum = Number(p.price);
     const priceStr = (!isNaN(priceNum) && priceNum > 0) ? '¥' + priceNum.toLocaleString() : '—';
-    const shipKey = `${p.itemNo||''}__${p.color||''}__${p.size||''}`;
+    const shipKey = p.itemNo || '';
     const shipQty = shipmentMap[shipKey] || 0;
     return `<tr>
       <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap">${p.itemNo||'—'}</td>
