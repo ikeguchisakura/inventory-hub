@@ -495,16 +495,16 @@ a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
     </div>
 
     <div class="tbl-wrap" id="reserveTableWrap">
-      <table id="reserveTable">
+      <table id="reserveTable" style="table-layout:fixed;width:100%">
         <thead>
           <tr>
-            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">品番</th>
-            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">商品名</th>
-            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">カラー</th>
-            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">サイズ</th>
-            <th colspan="3" style="padding:10px 12px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);background:#f5f5ff;border-left:2px solid var(--rule)">👗 ZOZO</th>
-            <th colspan="3" style="padding:10px 12px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);background:#fff5f5;border-left:2px solid var(--rule)">🛒 楽天</th>
-            <th style="padding:10px 12px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);border-left:2px solid var(--rule);position:relative">
+            <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);width:80px">品番</th>
+            <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">商品名</th>
+            <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);width:100px">カラー</th>
+            <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);width:60px">サイズ</th>
+            <th colspan="3" style="padding:10px 8px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);background:#f5f5ff;border-left:2px solid var(--rule);width:150px">👗 ZOZO</th>
+            <th colspan="3" style="padding:10px 8px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);background:#fff5f5;border-left:2px solid var(--rule);width:150px">🛒 楽天</th>
+            <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);border-left:2px solid var(--rule);position:relative;width:90px">
               <span style="display:inline-flex;align-items:center;gap:3px;justify-content:flex-end">
                 合計受注数
                 <span id="reserveOrderFilterDot" style="display:none;color:var(--amber);font-size:10px">●</span>
@@ -516,18 +516,18 @@ a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
                 <div onclick="setReserveOrderFilter('nonzero')" id="rof_nonzero" style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=reserveOrderFilter==='nonzero'?'var(--mint-dim)':'white'">　1以上のみ</div>
               </div>
             </th>
-            <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">お届け予定日</th>
+            <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);width:100px">お届け予定日</th>
           </tr>
           <tr>
-            <th colspan="4" style="padding:4px 12px;background:var(--surface2);border-bottom:1px solid var(--rule)"></th>
-            <th style="padding:6px 12px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#f5f5ff;border-left:2px solid var(--rule)">受付数</th>
-            <th style="padding:6px 12px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#f5f5ff">受注数</th>
-            <th style="padding:6px 12px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#f5f5ff">残枠</th>
-            <th style="padding:6px 12px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#fff5f5;border-left:2px solid var(--rule)">受付数</th>
-            <th style="padding:6px 12px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#fff5f5">受注数</th>
-            <th style="padding:6px 12px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#fff5f5">残枠</th>
-            <th style="padding:6px 12px;background:var(--surface2);border-left:2px solid var(--rule)"></th>
-            <th style="padding:6px 12px;background:var(--surface2)"></th>
+            <th colspan="4" style="padding:4px 8px;background:var(--surface2);border-bottom:1px solid var(--rule)"></th>
+            <th style="padding:6px 8px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#f5f5ff;border-left:2px solid var(--rule)">受付数</th>
+            <th style="padding:6px 8px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#f5f5ff">受注数</th>
+            <th style="padding:6px 8px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#f5f5ff">残枠</th>
+            <th style="padding:6px 8px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#fff5f5;border-left:2px solid var(--rule)">受付数</th>
+            <th style="padding:6px 8px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#fff5f5">受注数</th>
+            <th style="padding:6px 8px;text-align:right;font-size:9px;font-weight:700;color:var(--muted);background:#fff5f5">残枠</th>
+            <th style="padding:6px 8px;background:var(--surface2);border-left:2px solid var(--rule)"></th>
+            <th style="padding:6px 8px;background:var(--surface2)"></th>
           </tr>
         </thead>
         <tbody id="reserveTableBody"></tbody>
@@ -1349,7 +1349,7 @@ function renderReserves() {
   empty.style.display = 'none';
   tbl.style.display = 'table';
 
-  const tdBase = 'padding:10px 12px;border-bottom:1px solid var(--rule);';
+  const tdBase = 'padding:8px 8px;border-bottom:1px solid var(--rule);';
   const tdZozo = tdBase + 'background:rgba(124,77,255,0.03);border-left:2px solid var(--rule);text-align:right;font-family:\'DM Mono\',monospace;font-weight:600';
   const tdRaku = tdBase + 'background:rgba(232,72,85,0.03);border-left:2px solid var(--rule);text-align:right;font-family:\'DM Mono\',monospace;font-weight:600';
   const tdZozo2 = tdBase + 'background:rgba(124,77,255,0.03);text-align:right;font-family:\'DM Mono\',monospace;font-weight:600';
