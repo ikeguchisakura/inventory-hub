@@ -1159,9 +1159,11 @@ function refreshOverview(){
   const inTransit = S.transit ? S.transit.filter(t=>t.status!=='arrived').length : 0;
   const kpiTransitEl = document.getElementById('kpiTransit');
   if (kpiTransitEl) kpiTransitEl.textContent = inTransit;
-  document.getElementById('kpiOrdering').textContent = S.orders.filter(o=>['ordered','production','shipped'].includes(o.status)).length;
+  const kpiOrderingEl = document.getElementById('kpiOrdering');
+  if (kpiOrderingEl) kpiOrderingEl.textContent = S.orders.filter(o=>['ordered','production','shipped'].includes(o.status)).length;
   const urgentForecast = S.forecast.filter(f=>f.priority==='urgent').length;
-  document.getElementById('kpiForecastAlert').textContent = urgentForecast;
+  const kpiForecastEl = document.getElementById('kpiForecastAlert');
+  if (kpiForecastEl) kpiForecastEl.textContent = urgentForecast;
 
   // 総SKU数
   const skuCount = S.products ? S.products.length : 0;
@@ -1227,18 +1229,21 @@ function refreshOverview(){
   if(inTransit>0) alerts.push(`<div class="alert-strip amber"><span>🚚</span><span>${inTransit}件の在途在庫があります — <a class="lnk" onclick="goPage('transit')">在途在庫を確認</a></span></div>`);
   if(urgentForecast>0) alerts.push(`<div class="alert-strip coral"><span>🚨</span><span>在庫切れ予測が<strong>${urgentForecast}SKU</strong>あります — <a class="lnk" onclick="goPage('forecast')">発注予測を見る</a></span></div>`);
   document.getElementById('overviewAlerts').innerHTML=alerts.join('');
-  // Transit quick list
-  const active=S.transit.filter(t=>t.status!=='arrived').slice(0,5);
-  if(active.length===0){
-    document.getElementById('overviewTransitList').innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">在途中アイテムなし</div></div>';
-  } else {
-    document.getElementById('overviewTransitList').innerHTML=`<table style="width:100%"><thead><tr><th>商品名</th><th>移動フロー</th><th class="text-right">数量</th><th>ステータス</th></tr></thead><tbody>`+
-    active.map(t=>`<tr>
-      <td><div class="fw7">${t.name}</div><div style="font-size:11px;color:var(--muted)">${t.sku}</div></td>
-      <td><div class="transit-flow"><span class="transit-node node-from">${chLabel(t.from)}</span><span class="transit-arrow">→</span><span class="transit-node node-to">${chLabel(t.to)}</span></div></td>
-      <td class="text-right mono fw7">${t.qty}</td>
-      <td>${transitBadge(t.status)}</td>
-    </tr>`).join('')+'</tbody></table>';
+  // Transit quick list（削除済みの場合はスキップ）
+  const transitListEl = document.getElementById('overviewTransitList');
+  if (transitListEl && S.transit) {
+    const active=S.transit.filter(t=>t.status!=='arrived').slice(0,5);
+    if(active.length===0){
+      transitListEl.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">在途中アイテムなし</div></div>';
+    } else {
+      transitListEl.innerHTML=`<table style="width:100%"><thead><tr><th>商品名</th><th>移動フロー</th><th class="text-right">数量</th><th>ステータス</th></tr></thead><tbody>`+
+      active.map(t=>`<tr>
+        <td><div class="fw7">${t.name}</div><div style="font-size:11px;color:var(--muted)">${t.sku}</div></td>
+        <td><div class="transit-flow"><span class="transit-node node-from">${chLabel(t.from)}</span><span class="transit-arrow">→</span><span class="transit-node node-to">${chLabel(t.to)}</span></div></td>
+        <td class="text-right mono fw7">${t.qty}</td>
+        <td>${transitBadge(t.status)}</td>
+      </tr>`).join('')+'</tbody></table>';
+    }
   }
 }
 
