@@ -286,6 +286,38 @@ a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
 #prodTable thead th { position: relative; }
 .stock-filter-menu { text-align: left; }
 .jan-hidden { display: none !important; }
+
+/* ── 出荷指示 ── */
+.si-upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.si-kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+.si-kpi { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r-sm); padding: 14px 16px; }
+.si-kpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 4px; }
+.si-kpi-val { font-family: 'DM Mono', monospace; font-size: 22px; font-weight: 500; }
+.si-row-alert  { background: #fef9f0 !important; }
+.si-row-danger { background: #fef0f0 !important; }
+.si-qty-input {
+  width: 64px; text-align: center; font-family: 'DM Mono', monospace; font-size: 13px;
+  padding: 5px 6px; border: 1.5px solid var(--rule); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink); outline: none;
+}
+.si-qty-input:focus { border-color: var(--mint); box-shadow: 0 0 0 2px var(--mint-dim); }
+.si-qty-input.changed { border-color: var(--blue); background: var(--blue-dim); }
+.si-memo-input {
+  width: 100%; font-size: 12px; padding: 5px 8px;
+  border: 1.5px solid var(--rule); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink); outline: none; font-family: 'Noto Sans JP',sans-serif;
+}
+.si-memo-input:focus { border-color: var(--mint); }
+.si-store-mini { display: flex; gap: 4px; flex-wrap: wrap; }
+.si-store-chip { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; background: var(--surface2); color: var(--ink2); white-space: nowrap; }
+.si-store-chip.hi { background: var(--mint-dim); color: #007a57; }
+.si-section-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--surface2); border-bottom: 1px solid var(--rule); font-size: 12px; font-weight: 700; }
+.si-print-area { display: none; }
+@media print {
+  nav, .si-upload-grid, .si-kpi-row, .toolbar, .si-print-hide { display: none !important; }
+  .si-print-area { display: block !important; }
+  body { background: white; }
+}
 </style>
 </head>
 <body>
@@ -299,6 +331,7 @@ a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
     <button class="nav-tab" onclick="goPage('transit')">🚢 工場出荷</button>
     <button class="nav-tab" onclick="goPage('forecast')">📈 発注予測</button>
     <button class="nav-tab" onclick="goPage('order')">🏭 工場発注</button>
+    <button class="nav-tab" onclick="goPage('shipinstruct')">📋 出荷指示</button>
   </div>
   <div class="nav-right" id="navDate"></div>
 </nav>
@@ -1121,7 +1154,7 @@ function save(){
 // ════════════════════════════════
 // NAV / DATE
 // ════════════════════════════════
-const PAGES = ['overview','products','reserve','transit','forecast','order'];
+const PAGES = ['overview','products','reserve','transit','forecast','order','shipinstruct'];
 function goPage(id){
   PAGES.forEach(p=>{
     document.getElementById('page-'+p).classList.toggle('active', p===id);
@@ -1132,6 +1165,7 @@ function goPage(id){
   if(id==='reserve')  renderReserves();
   if(id==='transit') renderShipments();
   if(id==='order'){renderOrders();renderTimeline();}
+  if(id==='shipinstruct') initSiPage();
 }
 (()=>{
   const d=new Date();
@@ -3786,6 +3820,356 @@ window.addEventListener('load', function() {
   }
 });
 
+// ════════════════════════════════
+// 出荷指示 機能
+// ════════════════════════════════
+
+let siStockData = null;  // 在庫分析データ（行配列）
+let siSalesData = null;  // 売上数量データ（行配列）
+let siRows = [];         // 結合後の表示行
+let siUserQty = {};      // ユーザーが入力したフォロー数 { key: qty }
+let siUserMemo = {};     // ユーザーメモ { key: memo }
+
+// ── CSV汎用パーサ（Shift-JIS / UTF-8-BOM対応）──
+function parseCsvAutoEnc(buffer) {
+  // まずUTF-8で試し、日本語が通ればOK
+  let text;
+  try {
+    const dec = new TextDecoder('utf-8');
+    text = dec.decode(buffer);
+    if (!/[\u3040-\u9FFF]/.test(text)) throw new Error('no cjk');
+  } catch(e) {
+    text = new TextDecoder('shift_jis').decode(buffer);
+  }
+  // BOM除去
+  text = text.replace(/^\uFEFF/, '');
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const parseLine = line => {
+    const r = []; let cur = ''; let inQ = false;
+    for (const c of line) {
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { r.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    r.push(cur.trim());
+    return r;
+  };
+  const headers = parseLine(lines[0]).map(h => h.replace(/^\s+|\s+$/g,''));
+  const rows = lines.slice(1).map(parseLine).filter(r => r.some(c=>c));
+  return { headers, rows };
+}
+
+function parseCsvToObjects(buffer) {
+  const { headers, rows } = parseCsvAutoEnc(buffer);
+  return rows.map(row => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (row[i] || '').trim(); });
+    return obj;
+  });
+}
+
+// ── ファイル読み込み ──
+function handleSiStockCsv(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    siStockData = parseCsvToObjects(ev.target.result);
+    document.getElementById('siStockLabel').textContent = `✅ ${file.name}（${siStockData.length}行）`;
+    document.getElementById('siStockZone').style.borderColor = 'var(--mint)';
+    document.getElementById('siStockZone').style.background = 'var(--mint-dim)';
+    toast(`📊 在庫分析データを読み込みました（${siStockData.length}行）`, 'success');
+    tryBuildSiTable();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function handleSiSalesCsv(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    siSalesData = parseCsvToObjects(ev.target.result);
+    document.getElementById('siSalesLabel').textContent = `✅ ${file.name}（${siSalesData.length}行）`;
+    document.getElementById('siSalesZone').style.borderColor = 'var(--mint)';
+    document.getElementById('siSalesZone').style.background = 'var(--mint-dim)';
+    toast(`🛒 売上数量データを読み込みました（${siSalesData.length}行）`, 'success');
+    tryBuildSiTable();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── 両CSVが揃ったら突合・テーブル構築 ──
+function tryBuildSiTable() {
+  if (!siStockData || !siSalesData) return;
+
+  // 在庫分析: CS品番+カラー+サイズ → 行マップ
+  const stockMap = {};
+  siStockData.forEach(row => {
+    // 列名の前後スペースを除去してアクセス
+    const trimmed = {};
+    Object.keys(row).forEach(k => { trimmed[k.trim()] = row[k]; });
+    const key = [trimmed['CS品番']||'', trimmed['カラー']||'', trimmed['サイズ']||''].join('|');
+    if (!key.startsWith('|')) stockMap[key] = trimmed;
+  });
+
+  // 売上数量: CS品番+カラー+サイズ → 注文数合計マップ
+  const salesMap = {};
+  siSalesData.forEach(row => {
+    const trimmed = {};
+    Object.keys(row).forEach(k => { trimmed[k.trim()] = row[k]; });
+    const key = [trimmed['CS品番']||'', trimmed['カラー']||'', trimmed['サイズ']||''].join('|');
+    if (!key.startsWith('|')) {
+      salesMap[key] = (salesMap[key] || 0) + (parseInt(trimmed['注文数']) || 0);
+    }
+  });
+
+  // 在庫データを基準に突合
+  siRows = [];
+  Object.entries(stockMap).forEach(([key, s]) => {
+    const prevDay = parseInt(s['前日販売数']) || 0;
+    const orderQty = salesMap[key] || 0;
+    const combined = prevDay + orderQty;
+    const available = parseInt(s['販売可能数合計']) || 0;
+
+    // 自社在庫（スマレジ取込済みデータから品番でマッチ）
+    const ownStock = getSiOwnStock(s['CS品番'] || '');
+
+    // 推奨フォロー数（合算数と販売可能数の差を埋める、ただし自社在庫上限）
+    const deficit = Math.max(0, combined - available);
+    const recommended = ownStock !== null ? Math.min(deficit, ownStock.total) : deficit;
+
+    siRows.push({
+      key, csSku: s['CS品番']||'', name: s['商品名']||s['商品名 ']||'',
+      color: s['カラー']||'', size: s['サイズ']||'',
+      prevDay, orderQty, combined, available,
+      ownStock,
+      recommended,
+    });
+  });
+
+  // 合算数降順でソート
+  siRows.sort((a,b) => b.combined - a.combined);
+
+  document.getElementById('siKpiRow').style.display = 'grid';
+  document.getElementById('siTableCard').style.display = 'block';
+  renderSiTable();
+  updateSiKpi();
+}
+
+// スマレジ取込済みデータから自社在庫を取得
+function getSiOwnStock(csSku) {
+  if (!csSku) return null;
+  const products = JSON.parse(localStorage.getItem('ppt_products') || '[]');
+  const match = products.find(p => String(p.itemNo||'').trim() === String(csSku).trim());
+  if (!match) return null;
+  const wh = match.warehouse||0, on = match.shopify||0;
+  const da = match.daikanyama||0, na = match.nagoya||0;
+  const ko = match.kobe||0, bz = match.bazar||0;
+  return {
+    total: wh+on+da+na+ko+bz,
+    warehouse: wh, online: on, daikanyama: da,
+    nagoya: na, kobe: ko, bazar: bz
+  };
+}
+
+// ── テーブル描画 ──
+function renderSiTable() {
+  const filter = document.getElementById('siFilterStatus').value;
+  const tbody = document.getElementById('siTableBody');
+
+  const filtered = siRows.filter(r => {
+    if (!filter) return true;
+    const status = getSiStatus(r);
+    return status === filter;
+  });
+
+  document.getElementById('siTableCount').textContent = `${filtered.length} / ${siRows.length} SKU`;
+
+  tbody.innerHTML = filtered.map((r, i) => {
+    const status = getSiStatus(r);
+    const rowCls = status === 'danger' ? 'si-row-danger' : status === 'alert' ? 'si-row-alert' : '';
+    const statusIcon = status === 'danger' ? '🔴' : status === 'alert' ? '🟡' : '🟢';
+    const key = r.key;
+    const userQty = siUserQty[key] !== undefined ? siUserQty[key] : '';
+    const userMemo = siUserMemo[key] || '';
+
+    // 店舗別在庫チップ
+    let storeHtml = '<span style="color:var(--muted);font-size:11px">—</span>';
+    if (r.ownStock) {
+      const chips = [
+        ['倉庫', r.ownStock.warehouse],
+        ['Online', r.ownStock.online],
+        ['代官山', r.ownStock.daikanyama],
+        ['名古屋', r.ownStock.nagoya],
+        ['神戸', r.ownStock.kobe],
+        ['bazar', r.ownStock.bazar],
+      ];
+      storeHtml = `<div class="si-store-mini">${chips.map(([n,v]) =>
+        `<span class="si-store-chip${v>0?' hi':''}">${n}:${v}</span>`
+      ).join('')}</div>`;
+    }
+
+    const ownTotalHtml = r.ownStock !== null
+      ? `<span class="${r.ownStock.total === 0 ? 'sc-out' : r.ownStock.total < r.combined ? 'sc-low' : 'sc-ok'}">${r.ownStock.total}</span>`
+      : `<span style="color:var(--muted)">—</span>`;
+
+    return `<tr class="${rowCls}">
+      <td class="mono text-center" style="color:var(--muted);font-size:11px">${statusIcon} ${i+1}</td>
+      <td class="mono fw7" style="font-size:12px">${r.csSku}</td>
+      <td style="font-size:12px;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.name}">${r.name}</td>
+      <td style="font-size:12px">${r.color}</td>
+      <td style="font-size:12px">${r.size}</td>
+      <td class="text-right mono fw7">${r.combined}
+        <div style="font-size:10px;color:var(--muted);font-weight:400">${r.prevDay}+${r.orderQty}</div>
+      </td>
+      <td class="text-right mono">${r.available}</td>
+      <td class="text-right">${ownTotalHtml}</td>
+      <td>${storeHtml}</td>
+      <td class="text-right mono" style="color:var(--blue);font-weight:700">${r.recommended}</td>
+      <td class="text-center">
+        <input type="number" class="si-qty-input${userQty !== '' ? ' changed' : ''}"
+          min="0" value="${userQty}"
+          placeholder="${r.recommended}"
+          oninput="onSiQtyInput('${key}', this)"
+          onchange="onSiQtyInput('${key}', this)">
+      </td>
+      <td>
+        <input type="text" class="si-memo-input" value="${userMemo}"
+          placeholder="直営優先・入荷待ちなど"
+          oninput="onSiMemoInput('${key}', this)">
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function getSiStatus(r) {
+  if (r.ownStock === null) return 'alert'; // スマレジ未マッチ
+  if (r.ownStock.total === 0 && r.combined > 0) return 'danger';
+  if (r.ownStock.total < r.combined) return 'alert';
+  return 'ok';
+}
+
+function onSiQtyInput(key, input) {
+  const v = input.value.trim();
+  if (v === '') { delete siUserQty[key]; input.classList.remove('changed'); }
+  else { siUserQty[key] = parseInt(v) || 0; input.classList.add('changed'); }
+  updateSiKpi();
+}
+
+function onSiMemoInput(key, input) {
+  siUserMemo[key] = input.value;
+}
+
+function updateSiKpi() {
+  document.getElementById('siKpiSku').textContent = siRows.length;
+  let total = 0;
+  siRows.forEach(r => {
+    const v = siUserQty[r.key] !== undefined ? siUserQty[r.key] : r.recommended;
+    total += v;
+  });
+  document.getElementById('siKpiTotal').textContent = total;
+  document.getElementById('siKpiShort').textContent = siRows.filter(r => getSiStatus(r) === 'danger').length;
+  document.getElementById('siKpiAlert').textContent = siRows.filter(r => getSiStatus(r) === 'alert').length;
+}
+
+// 推奨数を一括セット
+function siAutoFill() {
+  siRows.forEach(r => { siUserQty[r.key] = r.recommended; });
+  renderSiTable();
+  updateSiKpi();
+  toast('🤖 推奨フォロー数を一括セットしました', 'success');
+}
+
+// CSV出力
+function exportSiCsv() {
+  const header = ['CS品番','商品名','カラー','サイズ','前日販売数','注文数','合算数','販売可能数(ZOZO)','自社在庫合計','倉庫','オンライン','代官山','名古屋','神戸','bazar','推奨フォロー数','確定フォロー数','メモ'];
+  const rows = siRows.map(r => {
+    const own = r.ownStock || {total:0,warehouse:0,online:0,daikanyama:0,nagoya:0,kobe:0,bazar:0};
+    const qty = siUserQty[r.key] !== undefined ? siUserQty[r.key] : r.recommended;
+    return [r.csSku, r.name, r.color, r.size, r.prevDay, r.orderQty, r.combined, r.available, own.total, own.warehouse, own.online, own.daikanyama, own.nagoya, own.kobe, own.bazar, r.recommended, qty, siUserMemo[r.key]||''];
+  });
+  const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `出荷指示_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast('📥 CSV出力しました', 'success');
+}
+
+// 印刷
+function printSiSheet() {
+  const today = new Date().toLocaleDateString('ja-JP');
+  let total = 0;
+  siRows.forEach(r => { total += siUserQty[r.key] !== undefined ? siUserQty[r.key] : r.recommended; });
+
+  const rows = siRows.filter(r => {
+    const qty = siUserQty[r.key] !== undefined ? siUserQty[r.key] : r.recommended;
+    return qty > 0;
+  });
+
+  const html = `
+    <div style="font-family:'Noto Sans JP',sans-serif;font-size:12px;padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px;border-bottom:2px solid #333;padding-bottom:10px">
+        <div>
+          <div style="font-size:20px;font-weight:900;letter-spacing:-0.5px">📋 出荷指示書</div>
+          <div style="font-size:11px;color:#666;margin-top:2px">panpantutu — ZOZO/外部チャネル フォロー指示</div>
+        </div>
+        <div style="text-align:right;font-size:11px;color:#666">
+          <div>作成日：${today}</div>
+          <div style="font-size:16px;font-weight:700;color:#333;margin-top:4px">合計 ${total} 点</div>
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead>
+          <tr style="background:#f3f1ec">
+            <th style="padding:7px 8px;border:1px solid #ddd;text-align:left">CS品番</th>
+            <th style="padding:7px 8px;border:1px solid #ddd;text-align:left">商品名</th>
+            <th style="padding:7px 8px;border:1px solid #ddd">カラー</th>
+            <th style="padding:7px 8px;border:1px solid #ddd">サイズ</th>
+            <th style="padding:7px 8px;border:1px solid #ddd;text-align:right">合算</th>
+            <th style="padding:7px 8px;border:1px solid #ddd;text-align:right">販売可能</th>
+            <th style="padding:7px 8px;border:1px solid #ddd;text-align:right">自社在庫</th>
+            <th style="padding:7px 8px;border:1px solid #ddd;text-align:right;background:#e8f4ff;font-weight:900">出荷数</th>
+            <th style="padding:7px 8px;border:1px solid #ddd">メモ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r,i) => {
+            const qty = siUserQty[r.key] !== undefined ? siUserQty[r.key] : r.recommended;
+            const own = r.ownStock ? r.ownStock.total : '—';
+            return `<tr style="background:${i%2===0?'#fff':'#fafaf8'}">
+              <td style="padding:6px 8px;border:1px solid #ddd;font-family:monospace;font-weight:700">${r.csSku}</td>
+              <td style="padding:6px 8px;border:1px solid #ddd;max-width:160px">${r.name}</td>
+              <td style="padding:6px 8px;border:1px solid #ddd;text-align:center">${r.color}</td>
+              <td style="padding:6px 8px;border:1px solid #ddd;text-align:center">${r.size}</td>
+              <td style="padding:6px 8px;border:1px solid #ddd;text-align:right;font-weight:700">${r.combined}</td>
+              <td style="padding:6px 8px;border:1px solid #ddd;text-align:right">${r.available}</td>
+              <td style="padding:6px 8px;border:1px solid #ddd;text-align:right">${own}</td>
+              <td style="padding:6px 8px;border:1px solid #ddd;text-align:right;font-size:15px;font-weight:900;background:#eaf4ff">${qty}</td>
+              <td style="padding:6px 8px;border:1px solid #ddd;color:#666">${siUserMemo[r.key]||''}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div style="margin-top:16px;font-size:11px;color:#888">※ 直営優先・入荷待ち等はメモ欄を参照</div>
+    </div>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>出荷指示書</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>@media print{body{margin:0}}</style>
+    </head><body>${html}<script>window.onload=()=>{window.print();}<\/script></body></html>`);
+  win.document.close();
+}
+
+// ドロップゾーン設定（既存のsetupDropZoneを流用）
+// ページ遷移時に初期化
+function initSiPage() {
+  setupDropZone('siStockZone', 'siStockInput', handleSiStockCsv);
+  setupDropZone('siSalesZone', 'siSalesInput', handleSiSalesCsv);
+}
+
 // ドラッグ&ドロップ対応
 // ════════════════════════════════
 function setupDropZone(zoneId, inputId, handler) {
@@ -3806,6 +4190,96 @@ function setupDropZone(zoneId, inputId, handler) {
 }
 // setupDropZone は window.onload 内で呼び出し済み
 </script>
+
+<!-- ══════════════ PAGE: SHIPINSTRUCT ══════════════ -->
+<div class="page" id="page-shipinstruct">
+<div class="container">
+  <div class="section-title">📋 出荷指示</div>
+  <div class="section-sub">在庫分析データ・売上数量データを取込み、フォロー数を確定して指示書を作成</div>
+
+  <!-- アップロードエリア -->
+  <div class="si-upload-grid si-print-hide">
+    <!-- 在庫分析データ -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-head"><div class="card-head-title">📊 在庫分析データ <span style="font-size:10px;font-weight:400;color:var(--muted)">（ZOZOダウンロード）</span></div></div>
+      <div class="card-body" style="padding:14px">
+        <div class="upload-zone" id="siStockZone" onclick="document.getElementById('siStockInput').click()">
+          <div class="upload-icon">📊</div>
+          <div class="upload-title" id="siStockLabel">CSVをドロップ または クリック</div>
+          <div class="upload-sub">在庫分析データ（Z列:前日販売数 / W列:販売可能数合計）</div>
+        </div>
+        <input type="file" id="siStockInput" accept=".csv" style="display:none" onchange="handleSiStockCsv(event)">
+      </div>
+    </div>
+    <!-- 売上数量データ -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-head"><div class="card-head-title">🛒 指定期間の売上数量 <span style="font-size:10px;font-weight:400;color:var(--muted)">（ZOZOダウンロード）</span></div></div>
+      <div class="card-body" style="padding:14px">
+        <div class="upload-zone" id="siSalesZone" onclick="document.getElementById('siSalesInput').click()">
+          <div class="upload-icon">🛒</div>
+          <div class="upload-title" id="siSalesLabel">CSVをドロップ または クリック</div>
+          <div class="upload-sub">売上数量データ（P列:注文数）</div>
+        </div>
+        <input type="file" id="siSalesInput" accept=".csv" style="display:none" onchange="handleSiSalesCsv(event)">
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIサマリー -->
+  <div class="si-kpi-row si-print-hide" id="siKpiRow" style="display:none">
+    <div class="si-kpi"><div class="si-kpi-label">対象SKU</div><div class="si-kpi-val mint" id="siKpiSku">—</div></div>
+    <div class="si-kpi"><div class="si-kpi-label">合計フォロー数（確定）</div><div class="si-kpi-val blue" id="siKpiTotal">—</div></div>
+    <div class="si-kpi"><div class="si-kpi-label">在庫不足 SKU</div><div class="si-kpi-val coral" id="siKpiShort">—</div></div>
+    <div class="si-kpi"><div class="si-kpi-label">要確認 SKU</div><div class="si-kpi-val amber" id="siKpiAlert">—</div></div>
+  </div>
+
+  <!-- テーブル -->
+  <div class="card" id="siTableCard" style="display:none">
+    <div class="si-section-head si-print-hide">
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="siTableCount" style="color:var(--muted);font-size:11px"></span>
+        <select id="siFilterStatus" onchange="renderSiTable()" style="font-size:11px;padding:5px 8px;border:1.5px solid var(--rule);border-radius:var(--r-sm)">
+          <option value="">すべて表示</option>
+          <option value="danger">🔴 在庫不足のみ</option>
+          <option value="alert">🟡 要確認のみ</option>
+          <option value="ok">🟢 在庫十分のみ</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="siAutoFill()">🤖 推奨数を一括セット</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportSiCsv()">📥 CSV出力</button>
+        <button class="btn btn-mint btn-sm" onclick="printSiSheet()">🖨 印刷</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr style="background:var(--surface2)">
+            <th style="width:40px">#</th>
+            <th>CS品番</th>
+            <th>商品名</th>
+            <th>カラー</th>
+            <th>サイズ</th>
+            <th class="text-right" title="前日販売数 + 注文数">合算数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">前日+注文</span></th>
+            <th class="text-right">販売可能数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">ZOZO</span></th>
+            <th class="text-right" title="倉庫+オンライン+代官山+名古屋+神戸+bazar">自社在庫<br><span style="font-size:9px;font-weight:400;color:var(--muted)">合計</span></th>
+            <th>
+              <span title="倉庫/オンライン/代官山/名古屋/神戸/bazar">店舗別在庫</span>
+            </th>
+            <th class="text-right">推奨<br><span style="font-size:9px;font-weight:400;color:var(--muted)">フォロー</span></th>
+            <th style="width:80px" class="text-center">フォロー数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">確定入力</span></th>
+            <th>メモ</th>
+          </tr>
+        </thead>
+        <tbody id="siTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 印刷用エリア -->
+  <div class="si-print-area" id="siPrintArea"></div>
+</div>
+</div>
 
 <!-- GAS設定モーダル -->
 <div class="overlay" id="gasModal">
