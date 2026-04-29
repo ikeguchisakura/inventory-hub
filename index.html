@@ -1441,11 +1441,12 @@ function setShipQtyFilter(mode) {
 function toggleShipFileMenu(key, event) {
   event.stopPropagation();
   document.querySelectorAll('.stock-filter-menu').forEach(m => m.style.display = 'none');
+  window._shipCurrentFileKey = key;
   const menu = document.getElementById('shipFileMenu_' + key);
   if (menu) menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
 }
-function setShipFileFilter(key, mode) {
-  _shipFileF[key] = mode;
+function setShipFileFilter(mode) {
+  if (window._shipCurrentFileKey) _shipFileF[window._shipCurrentFileKey] = mode;
   document.querySelectorAll('.stock-filter-menu').forEach(m => m.style.display = 'none');
   renderShipments();
 }
@@ -1645,7 +1646,7 @@ function renderShipments() {
           ${fk.label}${shipSortIcon(fk.key)}${fDot}
           <span onclick="toggleShipFileMenu('${safeKey}',event)" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;background:rgba(0,0,0,0.08);font-size:9px;cursor:pointer;margin-left:2px;flex-shrink:0" title="絞り込み">▾</span>
         </span>
-        ${mkFilterMenu('shipFileMenu_'+fk.key, fMode, `(m=>setShipFileFilter('${safeKey}',m))`)}
+        ${mkFilterMenu('shipFileMenu_'+fk.key, fMode, 'setShipFileFilter')}
     }).join('')}
     <th style="${thSort}text-align:right;color:var(--amber);position:relative" onclick="setShipSort('total')" ${thHover}>
       <span style="display:inline-flex;align-items:center;gap:2px;justify-content:flex-end">
