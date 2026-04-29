@@ -572,22 +572,7 @@ a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
 
     <div class="tbl-wrap">
       <table id="shipmentTable">
-        <thead>
-          <tr>
-            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);white-space:nowrap">品番</th>
-            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">商品名</th>
-            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">カラー</th>
-            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">サイズ</th>
-            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);text-align:right">出荷数</th>
-            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);text-align:right">自社在庫</th>
-            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);text-align:right">ZOZO</th>
-            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);text-align:right">楽天</th>
-            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);text-align:right">Amazon</th>
-            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">出荷日</th>
-            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">輸送</th>
-            <th style="padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">工場</th>
-          </tr>
-        </thead>
+        <thead id="shipmentTableHead"></thead>
         <tbody id="shipmentTableBody"></tbody>
       </table>
       <div id="shipmentEmpty" class="empty" style="display:none">
@@ -1426,6 +1411,19 @@ function exportReserveCsv() {
 // ════════════════════════════════
 // SHIPMENTS（工場出荷）
 // ════════════════════════════════
+
+// 出荷ファイルの列キーを生成（例: "0428_達実_エアー"）
+function makeShipFileKey_(s) {
+  const mmdd = (s.shipDate || '').replace(/^\d{4}\//, '').replace('/', '');
+  return `${mmdd}_${s.factory||''}_${s.transport||''}`;
+}
+// 列ラベル表示用（例: "0428 達実エアー"）
+function makeShipFileLabel_(key) {
+  const [mmdd, factory, transport] = key.split('_');
+  const icon = transport === 'エアー' ? '✈️' : '🚢';
+  return `${mmdd} ${factory}${icon}`;
+}
+
 function renderShipments() {
   const search    = (document.getElementById('shipmentSearch')?.value || '').toLowerCase();
   const factoryF  = document.getElementById('shipmentFactoryFilter')?.value || '';
@@ -1442,7 +1440,41 @@ function renderShipments() {
       factories.map(f => `<option value="${f}" ${f===cur?'selected':''}>${f}</option>`).join('');
   }
 
-  let rows = data.filter(s => {
+  // ── 出荷ファイル列キーを日付順で収集 ──
+  const fileKeySet = new Map(); // key → {label, transport, factory, date}
+  data.forEach(s => {
+    const k = makeShipFileKey_(s);
+    if (!fileKeySet.has(k)) {
+      fileKeySet.set(k, {
+        label: makeShipFileLabel_(k),
+        transport: s.transport,
+        factory: s.factory,
+        shipDate: s.shipDate,
+      });
+    }
+  });
+  // 日付順ソート（キーの先頭MMDDで）
+  const fileKeys = [...fileKeySet.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([k,v]) => ({key:k, ...v}));
+
+  // ── KPIカード（出荷ファイル別） ──
+  const kpiGrid = document.getElementById('shipmentKpiGrid');
+  if (kpiGrid) {
+    const kpiColors = ['mint','amber','blue','purple','coral'];
+    kpiGrid.innerHTML = fileKeys.map((fk, i) => {
+      const total = data.filter(s => makeShipFileKey_(s) === fk.key).reduce((sum, s) => sum + s.qty, 0);
+      const icon = fk.transport === 'エアー' ? '✈️' : '🚢';
+      const col = kpiColors[i % kpiColors.length];
+      return `<div class="kpi ${col}">
+        <div class="kpi-icon">${icon}</div>
+        <div class="kpi-label" style="font-size:11px;font-weight:700">${fk.factory}</div>
+        <div class="kpi-value ${col}">${total.toLocaleString()}</div>
+        <div class="kpi-sub">${fk.label} 輸送中</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── フィルター適用（品番/商品名/工場/輸送） ──
+  let filtered = data.filter(s => {
     if (search && !((s.itemNo||'').toLowerCase().includes(search) || (s.name||'').toLowerCase().includes(search))) return false;
     if (factoryF   && s.factory   !== factoryF)   return false;
     if (transportF && s.transport !== transportF) return false;
@@ -1450,28 +1482,11 @@ function renderShipments() {
   });
 
   const tbody = document.getElementById('shipmentTableBody');
+  const thead = document.getElementById('shipmentTableHead');
   const empty = document.getElementById('shipmentEmpty');
   const tbl   = document.getElementById('shipmentTable');
 
-  // サマリーKPI（工場別出荷数）
-  const kpiGrid = document.getElementById('shipmentKpiGrid');
-  if (kpiGrid) {
-    const factories = [...new Set(data.map(s => s.factory).filter(Boolean))];
-    const colors = ['mint','amber','blue','purple','coral'];
-    kpiGrid.innerHTML = factories.map((f, i) => {
-      const total = data.filter(s => s.factory === f).reduce((sum, s) => sum + s.qty, 0);
-      const transport = data.find(s => s.factory === f)?.transport || '';
-      const icon = transport === 'エアー' ? '✈️' : '🚢';
-      return `<div class="kpi ${colors[i%colors.length]}">
-        <div class="kpi-icon">${icon}</div>
-        <div class="kpi-label">${f}</div>
-        <div class="kpi-value ${colors[i%colors.length]}">${total.toLocaleString()}</div>
-        <div class="kpi-sub">点 輸送中</div>
-      </div>`;
-    }).join('');
-  }
-
-  if (rows.length === 0) {
+  if (filtered.length === 0) {
     empty.style.display = 'block';
     tbl.style.display = 'none';
     document.getElementById('shipmentCount').textContent = '0件';
@@ -1481,48 +1496,92 @@ function renderShipments() {
   empty.style.display = 'none';
   tbl.style.display = 'table';
 
-  // 品番でS.productsとマッチして在庫数を取得
-  const productMap = {};
-  (S.products || []).forEach(p => { if (p.itemNo) productMap[p.itemNo] = p; });
+  // ── フィルター済みデータに含まれる列キーのみ表示 ──
+  const activeKeys = fileKeys.filter(fk => filtered.some(s => makeShipFileKey_(s) === fk.key));
 
-  tbody.innerHTML = rows.map(s => {
-    const p = productMap[s.itemNo] || {};
-    const selfStock = ['warehouse','shopify','daikanyama','nagoya','kobe','bazar','linegift']
-      .reduce((sum, k) => sum + (Number(p[k])||0), 0);
-    const transportBadge = s.transport === 'エアー'
-      ? '<span class="badge badge-blue">✈️ エアー</span>'
-      : '<span class="badge badge-mint">🚢 船</span>';
+  // ── ヘッダー動的生成 ──
+  const thStyle = `padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);white-space:nowrap`;
+  const thRight = thStyle + ';text-align:right';
+  thead.innerHTML = `<tr>
+    <th style="${thStyle}">品番</th>
+    <th style="${thStyle}">商品名</th>
+    <th style="${thStyle}">カラー</th>
+    <th style="${thStyle}">サイズ</th>
+    ${activeKeys.map(fk => {
+      const col = fk.transport === 'エアー' ? 'var(--blue)' : 'var(--mint)';
+      return `<th style="${thRight};color:${col}">${fk.label}</th>`;
+    }).join('')}
+    <th style="${thRight};color:var(--amber)">出荷合計</th>
+  </tr>`;
+
+  // ── 品番×カラー×サイズ でグループ化してピボット ──
+  const groupMap = new Map();
+  filtered.forEach(s => {
+    const gKey = `${s.itemNo||''}__${s.color||''}__${s.size||''}`;
+    if (!groupMap.has(gKey)) {
+      groupMap.set(gKey, { itemNo: s.itemNo, name: s.name, color: s.color, size: s.size, byFile: {} });
+    }
+    const fk = makeShipFileKey_(s);
+    const g = groupMap.get(gKey);
+    g.byFile[fk] = (g.byFile[fk] || 0) + s.qty;
+  });
+
+  const tdBase = `padding:10px 12px;border-bottom:1px solid var(--rule)`;
+  tbody.innerHTML = [...groupMap.values()].map(g => {
+    const total = activeKeys.reduce((sum, fk) => sum + (g.byFile[fk.key] || 0), 0);
+    const fileCells = activeKeys.map(fk => {
+      const qty = g.byFile[fk.key] || 0;
+      const col = fk.transport === 'エアー' ? 'var(--blue)' : 'var(--mint)';
+      return `<td style="${tdBase};text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:${qty>0?col:'var(--muted)'}">
+        ${qty > 0 ? qty.toLocaleString() : '—'}
+      </td>`;
+    }).join('');
     return `<tr>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap">${s.itemNo||'—'}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.name}">${s.name||'—'}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule)">${s.color ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600">${s.color}</span>` : '—'}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule)">${s.size ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:var(--blue-dim);color:var(--blue);font-size:11px;font-weight:700;font-family:'DM Mono',monospace">${s.size}</span>` : '—'}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--amber)">${s.qty.toLocaleString()}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:600">${selfStock > 0 ? selfStock.toLocaleString() : '<span style="color:var(--muted)">—</span>'}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:600">${p.zozo !== undefined ? p.zozo : '<span style="color:var(--muted)">—</span>'}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:600">${p.rakuten !== undefined ? p.rakuten : '<span style="color:var(--muted)">—</span>'}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:600">${p.amazon !== undefined ? p.amazon : '<span style="color:var(--muted)">—</span>'}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-size:12px;white-space:nowrap">${s.shipDate||'—'}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule)">${transportBadge}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-size:12px;font-weight:600">${s.factory||'—'}</td>
+      <td style="${tdBase};font-family:'DM Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap">${g.itemNo||'—'}</td>
+      <td style="${tdBase};font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.name||''}">${g.name||'—'}</td>
+      <td style="${tdBase};max-width:110px;overflow:hidden">${g.color ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:94px" title="${g.color}">${g.color}</span>` : '—'}</td>
+      <td style="${tdBase}">${g.size ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:var(--blue-dim);color:var(--blue);font-size:11px;font-weight:700;font-family:'DM Mono',monospace;white-space:nowrap">${g.size}</span>` : '—'}</td>
+      ${fileCells}
+      <td style="${tdBase};text-align:right;font-family:'DM Mono',monospace;font-weight:700;font-size:14px;color:var(--amber)">${total.toLocaleString()}</td>
     </tr>`;
   }).join('');
 
-  const totalQty = rows.reduce((s, r) => s + r.qty, 0);
-  document.getElementById('shipmentCount').textContent = `${rows.length.toLocaleString()}件`;
+  const skuCount = groupMap.size;
+  const totalQty = filtered.reduce((s, r) => s + r.qty, 0);
+  document.getElementById('shipmentCount').textContent = `${skuCount.toLocaleString()}SKU`;
   document.getElementById('shipmentTotalQty').textContent = `輸送中合計: ${totalQty.toLocaleString()}点`;
 }
 
 function exportShipmentsCsv() {
   if (!S.shipments || S.shipments.length === 0) { toast('出荷データがありません', 'warn'); return; }
-  const headers = ['品番','商品名','カラー','サイズ','出荷数','出荷日','輸送','工場'];
+  const data = S.shipments;
   const escape = v => { const s = String(v??''); return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g,'""')}"` : s; };
-  const csvRows = S.shipments.map(s => [s.itemNo, s.name, s.color, s.size, s.qty, s.shipDate, s.transport, s.factory].map(escape).join(','));
+  // 列キー収集（日付順）
+  const fileKeyMap = new Map();
+  data.forEach(s => {
+    const k = makeShipFileKey_(s);
+    if (!fileKeyMap.has(k)) fileKeyMap.set(k, makeShipFileLabel_(k));
+  });
+  const fileKeys = [...fileKeyMap.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+  // グループ化
+  const groupMap = new Map();
+  data.forEach(s => {
+    const gKey = `${s.itemNo||''}__${s.color||''}__${s.size||''}`;
+    if (!groupMap.has(gKey)) groupMap.set(gKey, { itemNo:s.itemNo, name:s.name, color:s.color, size:s.size, byFile:{} });
+    const k = makeShipFileKey_(s);
+    const g = groupMap.get(gKey);
+    g.byFile[k] = (g.byFile[k]||0) + s.qty;
+  });
+  const headers = ['品番','商品名','カラー','サイズ', ...fileKeys.map(([,label])=>label), '出荷合計'];
+  const csvRows = [...groupMap.values()].map(g => {
+    const total = fileKeys.reduce((sum,[k])=>sum+(g.byFile[k]||0),0);
+    return [g.itemNo, g.name, g.color, g.size, ...fileKeys.map(([k])=>g.byFile[k]||0), total].map(escape).join(',');
+  });
   const csv = '\uFEFF' + headers.join(',') + '\n' + csvRows.join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const now = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `工場出荷一覧_${now}.csv`; a.click();
-  toast(`📥 ${S.shipments.length.toLocaleString()}件をCSV出力しました`, 'success');
+  toast(`📥 ${groupMap.size.toLocaleString()}SKUをCSV出力しました`, 'success');
 }
 
 // ════════════════════════════════
