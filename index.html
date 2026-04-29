@@ -566,19 +566,7 @@ a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
         <option value="エアー">✈️ エアー</option>
         <option value="船">🚢 船</option>
       </select>
-      <!-- 品番ソート -->
-      <div style="display:flex;align-items:center;gap:4px;border:1.5px solid var(--rule);border-radius:var(--r-sm);overflow:hidden;">
-        <span style="font-size:10px;font-weight:700;color:var(--muted);padding:0 8px;white-space:nowrap">品番</span>
-        <button id="shipSortAsc"  onclick="setShipSort('asc')"  class="btn btn-sm" style="border-radius:0;border:none;border-left:1px solid var(--rule);padding:6px 10px;font-size:11px;">↑ 昇順</button>
-        <button id="shipSortDesc" onclick="setShipSort('desc')" class="btn btn-sm" style="border-radius:0;border:none;border-left:1px solid var(--rule);padding:6px 10px;font-size:11px;">↓ 降順</button>
-      </div>
-      <!-- 出荷合計フィルター -->
-      <div style="display:flex;align-items:center;gap:4px;border:1.5px solid var(--rule);border-radius:var(--r-sm);overflow:hidden;">
-        <span style="font-size:10px;font-weight:700;color:var(--muted);padding:0 8px;white-space:nowrap">出荷合計</span>
-        <button id="shipQtyAll"   onclick="setShipQtyFilter('all')"  class="btn btn-sm" style="border-radius:0;border:none;border-left:1px solid var(--rule);padding:6px 10px;font-size:11px;">すべて</button>
-        <button id="shipQtyZero"  onclick="setShipQtyFilter('zero')" class="btn btn-sm" style="border-radius:0;border:none;border-left:1px solid var(--rule);padding:6px 10px;font-size:11px;">0のみ</button>
-        <button id="shipQtyPos"   onclick="setShipQtyFilter('pos')"  class="btn btn-sm" style="border-radius:0;border:none;border-left:1px solid var(--rule);padding:6px 10px;font-size:11px;">1以上</button>
-      </div>
+      <!-- 品番ソート・出荷合計フィルターはヘッダー列に移動 -->
       <div class="spacer"></div>
       <button class="btn btn-ghost btn-sm" onclick="exportShipmentsCsv()">📥 CSV出力</button>
     </div>
@@ -1469,7 +1457,6 @@ function _updateShipBtnState() {
 }
 
 function renderShipments() {
-  _updateShipBtnState();
 
   const search    = (document.getElementById('shipmentSearch')?.value || '').toLowerCase();
   const factoryF  = document.getElementById('shipmentFactoryFilter')?.value || '';
@@ -1511,11 +1498,9 @@ function renderShipments() {
       }, 0);
       const icon = fk.transport === 'エアー' ? '✈️' : '🚢';
       const col  = kpiColors[i % kpiColors.length];
-      const amtStr = totalAmt >= 1000000
-        ? '¥' + (totalAmt/1000000).toFixed(1) + 'M'
-        : totalAmt >= 10000
-          ? '¥' + Math.round(totalAmt/10000) + '万'
-          : totalAmt > 0 ? '¥' + totalAmt.toLocaleString() : '—';
+      const amtStr = totalAmt >= 10000
+        ? '¥' + Math.round(totalAmt/10000).toLocaleString() + '万'
+        : totalAmt > 0 ? '¥' + totalAmt.toLocaleString() : '—';
       return `<div class="kpi ${col}">
         <div class="kpi-icon">${icon}</div>
         <div class="kpi-label" style="font-size:11px">${fk.label}</div>
@@ -1581,8 +1566,21 @@ function renderShipments() {
   // ── ヘッダー動的生成 ──
   const thS = `padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);white-space:nowrap`;
   const thR = thS + ';text-align:right';
+  const btnBase = `display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:3px;border:1px solid var(--rule);font-size:10px;cursor:pointer;font-weight:700;background:none;padding:0;line-height:1;transition:all 0.12s;`;
+  const sortAscStyle  = `${btnBase}${_shipSort==='asc'  ? 'background:var(--ink);color:white;border-color:var(--ink)' : 'color:var(--muted)'}`;
+  const sortDescStyle = `${btnBase}${_shipSort==='desc' ? 'background:var(--ink);color:white;border-color:var(--ink)' : 'color:var(--muted)'}`;
+
+  const mkQtyBtn = (mode, label) => {
+    const active = _shipQtyF === mode;
+    return `<button onclick="setShipQtyFilter('${mode}')" style="${btnBase}width:auto;padding:0 5px;font-size:9px;${active?'background:var(--ink);color:white;border-color:var(--ink)':'color:var(--muted)'}">${label}</button>`;
+  };
+
   thead.innerHTML = `<tr>
-    <th style="${thS}">品番</th>
+    <th style="${thS}">
+      品番
+      <button id="shipSortAsc"  onclick="setShipSort('asc')"  style="${sortAscStyle}">↑</button>
+      <button id="shipSortDesc" onclick="setShipSort('desc')" style="${sortDescStyle}">↓</button>
+    </th>
     <th style="${thS}">商品名</th>
     <th style="${thS}">カラー</th>
     <th style="${thS}">サイズ</th>
@@ -1590,7 +1588,12 @@ function renderShipments() {
       const col = fk.transport === 'エアー' ? 'var(--blue)' : 'var(--mint)';
       return `<th style="${thR};color:${col}">${fk.label}</th>`;
     }).join('')}
-    <th style="${thR};color:var(--amber)">出荷合計</th>
+    <th style="${thR};color:var(--amber)">
+      出荷合計
+      <div style="display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle">
+        ${mkQtyBtn('all','全')}${mkQtyBtn('zero','0')}${mkQtyBtn('pos','1+')}
+      </div>
+    </th>
   </tr>`;
 
   // ── ボディ描画 ──
