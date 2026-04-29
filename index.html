@@ -1428,9 +1428,17 @@ function setShipSort(key) {
   renderShipments();
 }
 
-// 出荷合計列クリックで all→pos→zero→all とサイクル
-function toggleShipQtyFilter() {
-  _shipQtyF = _shipQtyF === 'all' ? 'pos' : _shipQtyF === 'pos' ? 'zero' : 'all';
+// 出荷合計列クリックでメニュー開閉
+function toggleShipQtyMenu(event) {
+  event.stopPropagation();
+  // 他の在庫フィルターメニューを閉じる
+  document.querySelectorAll('.stock-filter-menu').forEach(m => m.style.display = 'none');
+  const menu = document.getElementById('shipQtyMenu');
+  if (menu) menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+}
+function setShipQtyFilter(mode) {
+  _shipQtyF = mode;
+  document.querySelectorAll('.stock-filter-menu').forEach(m => m.style.display = 'none');
   renderShipments();
 }
 
@@ -1550,16 +1558,17 @@ function renderShipments() {
     });
   }
 
-  // 品番 or ファイル別数量でソート
+  // 品番 / ファイル別数量 / 出荷合計 でソート
   groups.sort((a, b) => {
     let cmp = 0;
     if (_shipSort === 'itemNo' || _shipSort === null) {
       cmp = (a.itemNo||'').localeCompare(b.itemNo||'', 'ja');
+    } else if (_shipSort === 'total') {
+      const ta = activeKeys.reduce((s, fk) => s + (a.byFile[fk.key]||0), 0);
+      const tb = activeKeys.reduce((s, fk) => s + (b.byFile[fk.key]||0), 0);
+      cmp = ta - tb;
     } else {
-      // ファイルキー別数量でソート
-      const qa = a.byFile[_shipSort] || 0;
-      const qb = b.byFile[_shipSort] || 0;
-      cmp = qa - qb;
+      cmp = (a.byFile[_shipSort]||0) - (b.byFile[_shipSort]||0);
     }
     return cmp * _shipSortDir;
   });
@@ -1594,7 +1603,7 @@ function renderShipments() {
 
   // 出荷合計フィルタードット
   const qtyFilterDot = _shipQtyF !== 'all'
-    ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber);margin-left:4px;vertical-align:middle"></span>`
+    ? `<span style="color:var(--amber);margin-left:2px;font-size:10px">●</span>`
     : '';
 
   // 各出荷ファイル列のソートアイコン
@@ -1604,6 +1613,15 @@ function renderShipments() {
       ? '<span style="font-size:9px;margin-left:3px;color:var(--mint)">▲</span>'
       : '<span style="font-size:9px;margin-left:3px;color:var(--mint)">▼</span>';
   };
+
+  // 出荷合計フィルターメニュー
+  const qtyMenuItems = [
+    { mode:'all',  label:'すべて表示' },
+    { mode:'pos',  label:'1以上のみ' },
+    { mode:'zero', label:'0のみ表示' },
+  ].map(m => `<div onclick="setShipQtyFilter('${m.mode}')" style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;${_shipQtyF===m.mode?'color:var(--mint);background:var(--mint-dim)':''}" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${_shipQtyF===m.mode?'var(--mint-dim)':'white'}'">
+    ${_shipQtyF===m.mode?'✓ ':'　'}${m.label}
+  </div>`).join('');
 
   thead.innerHTML = `<tr>
     <th style="${thSort}text-align:left" onclick="setShipSort('itemNo')" ${thHover}>品番${shipSortIcon()}</th>
@@ -1615,7 +1633,15 @@ function renderShipments() {
       const bg  = fk.transport === 'エアー' ? '#eaf1fe' : '#e6f7f2';
       return `<th style="${thSort}text-align:right;color:${col};background:${bg}" onclick="setShipSort('${fk.key}')" ${thHover}>${fk.label}${shipFileIcon(fk.key)}</th>`;
     }).join('')}
-    <th style="${thSort}text-align:right;color:var(--amber)" onclick="toggleShipQtyFilter()" ${thHover}>出荷合計${qtyFilterDot}</th>
+    <th style="${thSort}text-align:right;color:var(--amber);position:relative" onclick="setShipSort('total')" ${thHover}>
+      <span style="display:inline-flex;align-items:center;gap:2px;justify-content:flex-end">
+        出荷合計${shipSortIcon()}${qtyFilterDot}
+        <span onclick="toggleShipQtyMenu(event)" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;background:var(--rule);font-size:9px;cursor:pointer;margin-left:2px;flex-shrink:0" title="絞り込み">▾</span>
+      </span>
+      <div id="shipQtyMenu" class="stock-filter-menu" style="display:none;position:absolute;right:0;z-index:100;background:white;border:1.5px solid var(--rule);border-radius:var(--r-sm);box-shadow:var(--sh-lg);margin-top:4px;min-width:120px;text-align:left;color:var(--ink)">
+        ${qtyMenuItems}
+      </div>
+    </th>
   </tr>`;
 
   // ── ボディ描画 ──
