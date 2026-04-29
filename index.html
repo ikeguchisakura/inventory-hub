@@ -1414,15 +1414,23 @@ function exportReserveCsv() {
 // ════════════════════════════════
 
 // ── 状態 ──
-let _shipSort    = 'asc';   // 'asc' | 'desc'
-let _shipQtyF    = 'all';   // 'all' | 'zero' | 'pos'
+let _shipSort    = 'itemNo'; // 'itemNo' | ファイルキー | null
+let _shipSortDir = 1;         // 1=昇順 -1=降順
+let _shipQtyF    = 'all';    // 'all' | 'zero' | 'pos'
 
-function setShipSort(dir) {
-  _shipSort = dir;
+function setShipSort(key) {
+  if (_shipSort === key) {
+    _shipSortDir *= -1;
+  } else {
+    _shipSort = key;
+    _shipSortDir = 1;
+  }
   renderShipments();
 }
-function setShipQtyFilter(mode) {
-  _shipQtyF = mode;
+
+// 出荷合計列クリックで all→pos→zero→all とサイクル
+function toggleShipQtyFilter() {
+  _shipQtyF = _shipQtyF === 'all' ? 'pos' : _shipQtyF === 'pos' ? 'zero' : 'all';
   renderShipments();
 }
 
@@ -1542,10 +1550,18 @@ function renderShipments() {
     });
   }
 
-  // 品番ソート
+  // 品番 or ファイル別数量でソート
   groups.sort((a, b) => {
-    const cmp = (a.itemNo||'').localeCompare(b.itemNo||'', 'ja');
-    return _shipSort === 'asc' ? cmp : -cmp;
+    let cmp = 0;
+    if (_shipSort === 'itemNo' || _shipSort === null) {
+      cmp = (a.itemNo||'').localeCompare(b.itemNo||'', 'ja');
+    } else {
+      // ファイルキー別数量でソート
+      const qa = a.byFile[_shipSort] || 0;
+      const qb = b.byFile[_shipSort] || 0;
+      cmp = qa - qb;
+    }
+    return cmp * _shipSortDir;
   });
 
   const tbody = document.getElementById('shipmentTableBody');
@@ -1563,37 +1579,43 @@ function renderShipments() {
   empty.style.display = 'none';
   tbl.style.display = 'table';
 
-  // ── ヘッダー動的生成 ──
-  const thS = `padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);white-space:nowrap`;
-  const thR = thS + ';text-align:right';
-  const btnBase = `display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:3px;border:1px solid var(--rule);font-size:10px;cursor:pointer;font-weight:700;background:none;padding:0;line-height:1;transition:all 0.12s;`;
-  const sortAscStyle  = `${btnBase}${_shipSort==='asc'  ? 'background:var(--ink);color:white;border-color:var(--ink)' : 'color:var(--muted)'}`;
-  const sortDescStyle = `${btnBase}${_shipSort==='desc' ? 'background:var(--ink);color:white;border-color:var(--ink)' : 'color:var(--muted)'}`;
+  // ── ヘッダー動的生成（商品一覧と同じクリックトグル仕様） ──
+  const thBase = `padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);white-space:nowrap;`;
+  const thSort = thBase + 'cursor:pointer;';
+  const thHover = 'onmouseover="this.style.color=\'var(--ink)\'" onmouseout="this.style.color=\'var(--muted)\'"';
 
-  const mkQtyBtn = (mode, label) => {
-    const active = _shipQtyF === mode;
-    return `<button onclick="setShipQtyFilter('${mode}')" style="${btnBase}width:auto;padding:0 5px;font-size:9px;${active?'background:var(--ink);color:white;border-color:var(--ink)':'color:var(--muted)'}">${label}</button>`;
+  // 品番ソートアイコン（商品一覧の sortIcon と同スタイル）
+  const shipSortIcon = () => {
+    if (_shipSort === null) return '<span style="opacity:0.3;font-size:9px;margin-left:3px">⇅</span>';
+    return _shipSort === 'asc'
+      ? '<span style="font-size:9px;margin-left:3px;color:var(--mint)">▲</span>'
+      : '<span style="font-size:9px;margin-left:3px;color:var(--mint)">▼</span>';
+  };
+
+  // 出荷合計フィルタードット
+  const qtyFilterDot = _shipQtyF !== 'all'
+    ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber);margin-left:4px;vertical-align:middle"></span>`
+    : '';
+
+  // 各出荷ファイル列のソートアイコン
+  const shipFileIcon = (key) => {
+    if (_shipSort !== key) return '<span style="opacity:0.3;font-size:9px;margin-left:3px">⇅</span>';
+    return _shipSortDir === 1
+      ? '<span style="font-size:9px;margin-left:3px;color:var(--mint)">▲</span>'
+      : '<span style="font-size:9px;margin-left:3px;color:var(--mint)">▼</span>';
   };
 
   thead.innerHTML = `<tr>
-    <th style="${thS}">
-      品番
-      <button id="shipSortAsc"  onclick="setShipSort('asc')"  style="${sortAscStyle}">↑</button>
-      <button id="shipSortDesc" onclick="setShipSort('desc')" style="${sortDescStyle}">↓</button>
-    </th>
-    <th style="${thS}">商品名</th>
-    <th style="${thS}">カラー</th>
-    <th style="${thS}">サイズ</th>
+    <th style="${thSort}text-align:left" onclick="setShipSort('itemNo')" ${thHover}>品番${shipSortIcon()}</th>
+    <th style="${thBase}text-align:left">商品名</th>
+    <th style="${thBase}text-align:left">カラー</th>
+    <th style="${thBase}text-align:left">サイズ</th>
     ${activeKeys.map(fk => {
       const col = fk.transport === 'エアー' ? 'var(--blue)' : 'var(--mint)';
-      return `<th style="${thR};color:${col}">${fk.label}</th>`;
+      const bg  = fk.transport === 'エアー' ? '#eaf1fe' : '#e6f7f2';
+      return `<th style="${thSort}text-align:right;color:${col};background:${bg}" onclick="setShipSort('${fk.key}')" ${thHover}>${fk.label}${shipFileIcon(fk.key)}</th>`;
     }).join('')}
-    <th style="${thR};color:var(--amber)">
-      出荷合計
-      <div style="display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle">
-        ${mkQtyBtn('all','全')}${mkQtyBtn('zero','0')}${mkQtyBtn('pos','1+')}
-      </div>
-    </th>
+    <th style="${thSort}text-align:right;color:var(--amber)" onclick="toggleShipQtyFilter()" ${thHover}>出荷合計${qtyFilterDot}</th>
   </tr>`;
 
   // ── ボディ描画 ──
