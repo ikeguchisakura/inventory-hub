@@ -1350,7 +1350,7 @@ function renderReserves() {
     return `<tr>
       <td style="${tdBase}font-family:'DM Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap">${g.csSku||'—'}</td>
       <td style="${tdBase}font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.name}">${g.name||'—'}</td>
-      <td style="${tdBase}">${g.color ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600">${g.color}</span>` : '—'}</td>
+      <td style="${tdBase}">${g.color ? '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600">' + (g.color||'') + '</span>' : '—'}</td>
       <td style="${tdBase}">${g.size ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:var(--blue-dim);color:var(--blue);font-size:11px;font-weight:700;font-family:'DM Mono',monospace">${g.size}</span>` : '—'}</td>
       <td style="${tdZozo}">${z ? z.reserveQty.toLocaleString() : dash}</td>
       <td style="${tdZozo2};color:var(--purple)">${z ? z.orderQty.toLocaleString() : dash}</td>
@@ -1459,7 +1459,7 @@ function resetShipFilters() {
 
 // 出荷ファイルの列キーを生成（例: "0428_達実_エアー"）
 function makeShipFileKey_(s) {
-  const mmdd = (s.shipDate || '').replace(/^\d{4}\//, '').replace('/', '');
+  const mmdd = (s.shipDate || '').slice(5).replace('/', '');
   return `${mmdd}_${s.factory||''}_${s.transport||''}`;
 }
 // 列ラベル表示用（例: "0428 達実✈️"）
@@ -1621,41 +1621,52 @@ function renderShipments() {
       { mode:'all',  label:'すべて表示' },
       { mode:'pos',  label:'1以上のみ' },
       { mode:'zero', label:'0のみ表示' },
-    ].map(m => `<div onclick="${onclickFn}('${m.mode}')" style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;${currentMode===m.mode?'color:var(--mint);background:var(--mint-dim)':''}" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${currentMode===m.mode?'var(--mint-dim)':'white'}'">
-      ${currentMode===m.mode?'✓ ':'　'}${m.label}
-    </div>`).join('');
-    return `<div id="${id}" class="stock-filter-menu" style="display:none;position:absolute;right:0;z-index:100;background:white;border:1.5px solid var(--rule);border-radius:var(--r-sm);box-shadow:var(--sh-lg);margin-top:4px;min-width:120px;text-align:left;color:var(--ink)">${items}</div>`;
+    ].map(m => {
+      const active = currentMode === m.mode;
+      const activeSt = active ? 'color:var(--mint);background:var(--mint-dim);' : '';
+      const hoverOut = active ? 'var(--mint-dim)' : 'white';
+      return '<div onclick="' + onclickFn + '(\'' + m.mode + '\')"'
+        + ' style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;' + activeSt + '"'
+        + ' onmouseover="this.style.background=\'var(--surface2)\'"'
+        + ' onmouseout="this.style.background=\'' + hoverOut + '\'">'
+        + (active ? '✓ ' : '　') + m.label
+        + '</div>';
+    }).join('');
+    return '<div id="' + id + '" class="stock-filter-menu" style="display:none;position:absolute;right:0;z-index:100;background:white;border:1.5px solid var(--rule);border-radius:var(--r-sm);box-shadow:var(--sh-lg);margin-top:4px;min-width:120px;text-align:left;color:var(--ink)">' + items + '</div>';
   };
 
   // 出荷合計フィルタードット
-  const qtyDot = _shipQtyF !== 'all' ? `<span style="color:var(--amber);margin-left:2px;font-size:10px">●</span>` : '';
+  const qtyDot = _shipQtyF !== 'all' ? '<span style="color:var(--amber);margin-left:2px;font-size:10px">●</span>' : '';
 
-  thead.innerHTML = `<tr>
-    <th style="${thSort}text-align:left" onclick="setShipSort('itemNo')" ${thHover}>品番${shipSortIcon('itemNo')}</th>
-    <th style="${thBase}text-align:left">商品名</th>
-    <th style="${thBase}text-align:left">カラー</th>
-    <th style="${thBase}text-align:left">サイズ</th>
-    ${activeKeys.map(fk => {
-      const col = fk.transport === 'エアー' ? 'var(--blue)' : 'var(--mint)';
-      const bg  = fk.transport === 'エアー' ? '#eaf1fe' : '#e6f7f2';
-      const fMode = _shipFileF[fk.key] || 'all';
-      const fDot  = fMode !== 'all' ? `<span style="color:var(--amber);margin-left:2px;font-size:10px">●</span>` : '';
-      const safeKey = fk.key.replace(/'/g, "\\'");
-      return `<th style="${thSort}text-align:right;color:${col};background:${bg};position:relative" onclick="setShipSort('${safeKey}')" ${thHover}>
-        <span style="display:inline-flex;align-items:center;gap:2px;justify-content:flex-end">
-          ${fk.label}${shipSortIcon(fk.key)}${fDot}
-          <span onclick="toggleShipFileMenu('${safeKey}',event)" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;background:rgba(0,0,0,0.08);font-size:9px;cursor:pointer;margin-left:2px;flex-shrink:0" title="絞り込み">▾</span>
-        </span>
-        ${mkFilterMenu('shipFileMenu_'+fk.key, fMode, 'setShipFileFilter')}
-    }).join('')}
-    <th style="${thSort}text-align:right;color:var(--amber);position:relative" onclick="setShipSort('total')" ${thHover}>
-      <span style="display:inline-flex;align-items:center;gap:2px;justify-content:flex-end">
-        出荷合計${shipSortIcon('total')}${qtyDot}
-        <span onclick="toggleShipQtyMenu(event)" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;background:var(--rule);font-size:9px;cursor:pointer;margin-left:2px;flex-shrink:0" title="絞り込み">▾</span>
-      </span>
-      ${mkFilterMenu('shipQtyMenu', _shipQtyF, 'setShipQtyFilter')}
-    </th>
-  </tr>`;
+  const fileCols = activeKeys.map(fk => {
+    const col = fk.transport === 'エアー' ? 'var(--blue)' : 'var(--mint)';
+    const bg  = fk.transport === 'エアー' ? '#eaf1fe' : '#e6f7f2';
+    const fMode = _shipFileF[fk.key] || 'all';
+    const fDot  = fMode !== 'all' ? '<span style="color:var(--amber);margin-left:2px;font-size:10px">●</span>' : '';
+    const safeKey = fk.key.replace(/'/g, "\\'");
+    return '<th style="' + thSort + 'text-align:right;color:' + col + ';background:' + bg + ';position:relative" onclick="setShipSort(\'' + safeKey + '\')" ' + thHover + '>'
+      + '<span style="display:inline-flex;align-items:center;gap:2px;justify-content:flex-end">'
+      + fk.label + shipSortIcon(fk.key) + fDot
+      + '<span onclick="toggleShipFileMenu(\'' + safeKey + '\',event)" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;background:rgba(0,0,0,0.08);font-size:9px;cursor:pointer;margin-left:2px;flex-shrink:0" title="絞り込み">▾</span>'
+      + '</span>'
+      + mkFilterMenu('shipFileMenu_'+fk.key, fMode, 'setShipFileFilter')
+      + '</th>';
+  }).join('');
+
+  thead.innerHTML = '<tr>'
+    + '<th style="' + thSort + 'text-align:left" onclick="setShipSort(\'itemNo\')" ' + thHover + '>品番' + shipSortIcon('itemNo') + '</th>'
+    + '<th style="' + thBase + 'text-align:left">商品名</th>'
+    + '<th style="' + thBase + 'text-align:left">カラー</th>'
+    + '<th style="' + thBase + 'text-align:left">サイズ</th>'
+    + fileCols
+    + '<th style="' + thSort + 'text-align:right;color:var(--amber);position:relative" onclick="setShipSort(\'total\')" ' + thHover + '>'
+    + '<span style="display:inline-flex;align-items:center;gap:2px;justify-content:flex-end">'
+    + '出荷合計' + shipSortIcon('total') + qtyDot
+    + '<span onclick="toggleShipQtyMenu(event)" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;background:var(--rule);font-size:9px;cursor:pointer;margin-left:2px;flex-shrink:0" title="絞り込み">▾</span>'
+    + '</span>'
+    + mkFilterMenu('shipQtyMenu', _shipQtyF, 'setShipQtyFilter')
+    + '</th>'
+    + '</tr>';
 
   // ── ボディ描画 ──
   const tdB = `padding:10px 12px;border-bottom:1px solid var(--rule)`;
@@ -1671,7 +1682,7 @@ function renderShipments() {
     return `<tr>
       <td style="${tdB};font-family:'DM Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap">${g.itemNo||'—'}</td>
       <td style="${tdB};font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.name||''}">${g.name||'—'}</td>
-      <td style="${tdB};max-width:110px;overflow:hidden">${g.color ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:94px" title="${g.color}">${g.color}</span>` : '—'}</td>
+      <td style="${tdB};max-width:110px;overflow:hidden">${g.color ? '<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:94px" title="' + (g.color||'') + '">' + (g.color||'') + '</span>' : '—'}</td>
       <td style="${tdB}">${g.size ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:var(--blue-dim);color:var(--blue);font-size:11px;font-weight:700;font-family:'DM Mono',monospace;white-space:nowrap">${g.size}</span>` : '—'}</td>
       ${fileCells}
       <td style="${tdB};text-align:right;font-family:'DM Mono',monospace;font-weight:700;font-size:14px;color:var(--amber)">${total.toLocaleString()}</td>
@@ -2356,9 +2367,14 @@ function renderProducts() {
         { mode:'all',     label:'すべて表示' },
         { mode:'zero',    label:'0のみ表示' },
         { mode:'nonzero', label:'1以上のみ' },
-      ].map(m => `<div onclick="setStockFilter('${ch.key}','${m.mode}')" style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;${filterMode===m.mode?'color:var(--mint);background:var(--mint-dim)':''}" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${filterMode===m.mode?'var(--mint-dim)':'white'}'">
-        ${filterMode===m.mode?'✓ ':'　'}${m.label}
-      </div>`).join('');
+      ].map(m => {
+        const a = filterMode === m.mode;
+        return '<div onclick="setStockFilter(\'' + ch.key + '\',\'' + m.mode + '\')"'
+          + ' style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;' + (a?'color:var(--mint);background:var(--mint-dim)':'') + '"'
+          + ' onmouseover="this.style.background=\'var(--surface2)\'"'
+          + ' onmouseout="this.style.background=\'' + (a?'var(--mint-dim)':'white') + '\'">'
+          + (a?'✓ ':'　') + m.label + '</div>';
+      }).join('');
       return `
     <th style="${thSort}text-align:right;background:${ch.smaregi?'#f0faf5':'#f5f5ff'}" onclick="setSortKey('${ch.key}')" ${thSortHover}>
       <span style="display:inline-flex;align-items:center;gap:2px;justify-content:flex-end">
@@ -3735,18 +3751,19 @@ async function showMeta() {
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead><tr>
           ${['日時','チャネル','合計件数','更新件数','新規件数','担当者'].map(h =>
-            `<th style="padding:8px 10px;text-align:left;background:var(--surface2);border-bottom:2px solid var(--rule);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">${h}</th>`
+            '<th style="padding:8px 10px;text-align:left;background:var(--surface2);border-bottom:2px solid var(--rule);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">' + h + '</th>'
           ).join('')}
         </tr></thead>
         <tbody>
-          ${rows.slice().reverse().slice(0,50).map(r => `<tr>
-            <td style="padding:8px 10px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px">${r['日時']||''}</td>
-            <td style="padding:8px 10px;border-bottom:1px solid var(--rule);font-weight:700">${r['チャネル']||''}</td>
-            <td style="padding:8px 10px;border-bottom:1px solid var(--rule);text-align:right">${Number(r['合計件数']||0).toLocaleString()}</td>
-            <td style="padding:8px 10px;border-bottom:1px solid var(--rule);text-align:right;color:var(--mint)">${Number(r['更新件数']||0).toLocaleString()}</td>
-            <td style="padding:8px 10px;border-bottom:1px solid var(--rule);text-align:right;color:var(--blue)">${Number(r['新規件数']||0).toLocaleString()}</td>
-            <td style="padding:8px 10px;border-bottom:1px solid var(--rule);color:var(--muted)">${r['担当者']||''}</td>
-          </tr>`).join('')}
+          ${rows.slice().reverse().slice(0,50).map(r => '<tr>'
+            + '<td style="padding:8px 10px;border-bottom:1px solid var(--rule);font-family:\'DM Mono\',monospace;font-size:11px">' + (r['日時']||'') + '</td>'
+            + '<td style="padding:8px 10px;border-bottom:1px solid var(--rule);font-weight:700">' + (r['チャネル']||'') + '</td>'
+            + '<td style="padding:8px 10px;border-bottom:1px solid var(--rule);text-align:right">' + Number(r['合計件数']||0).toLocaleString() + '</td>'
+            + '<td style="padding:8px 10px;border-bottom:1px solid var(--rule);text-align:right;color:var(--mint)">' + Number(r['更新件数']||0).toLocaleString() + '</td>'
+            + '<td style="padding:8px 10px;border-bottom:1px solid var(--rule);text-align:right;color:var(--blue)">' + Number(r['新規件数']||0).toLocaleString() + '</td>'
+            + '<td style="padding:8px 10px;border-bottom:1px solid var(--rule);color:var(--muted)">' + (r['担当者']||'') + '</td>'
+            + '</tr>'
+          ).join('')}
         </tbody>
       </table>`;
   } catch(e) {
