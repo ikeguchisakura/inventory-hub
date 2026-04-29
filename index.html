@@ -566,6 +566,19 @@ a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
         <option value="エアー">✈️ エアー</option>
         <option value="船">🚢 船</option>
       </select>
+      <!-- 品番ソート -->
+      <div style="display:flex;align-items:center;gap:4px;border:1.5px solid var(--rule);border-radius:var(--r-sm);overflow:hidden;">
+        <span style="font-size:10px;font-weight:700;color:var(--muted);padding:0 8px;white-space:nowrap">品番</span>
+        <button id="shipSortAsc"  onclick="setShipSort('asc')"  class="btn btn-sm" style="border-radius:0;border:none;border-left:1px solid var(--rule);padding:6px 10px;font-size:11px;">↑ 昇順</button>
+        <button id="shipSortDesc" onclick="setShipSort('desc')" class="btn btn-sm" style="border-radius:0;border:none;border-left:1px solid var(--rule);padding:6px 10px;font-size:11px;">↓ 降順</button>
+      </div>
+      <!-- 出荷合計フィルター -->
+      <div style="display:flex;align-items:center;gap:4px;border:1.5px solid var(--rule);border-radius:var(--r-sm);overflow:hidden;">
+        <span style="font-size:10px;font-weight:700;color:var(--muted);padding:0 8px;white-space:nowrap">出荷合計</span>
+        <button id="shipQtyAll"   onclick="setShipQtyFilter('all')"  class="btn btn-sm" style="border-radius:0;border:none;border-left:1px solid var(--rule);padding:6px 10px;font-size:11px;">すべて</button>
+        <button id="shipQtyZero"  onclick="setShipQtyFilter('zero')" class="btn btn-sm" style="border-radius:0;border:none;border-left:1px solid var(--rule);padding:6px 10px;font-size:11px;">0のみ</button>
+        <button id="shipQtyPos"   onclick="setShipQtyFilter('pos')"  class="btn btn-sm" style="border-radius:0;border:none;border-left:1px solid var(--rule);padding:6px 10px;font-size:11px;">1以上</button>
+      </div>
       <div class="spacer"></div>
       <button class="btn btn-ghost btn-sm" onclick="exportShipmentsCsv()">📥 CSV出力</button>
     </div>
@@ -1412,19 +1425,52 @@ function exportReserveCsv() {
 // SHIPMENTS（工場出荷）
 // ════════════════════════════════
 
+// ── 状態 ──
+let _shipSort    = 'asc';   // 'asc' | 'desc'
+let _shipQtyF    = 'all';   // 'all' | 'zero' | 'pos'
+
+function setShipSort(dir) {
+  _shipSort = dir;
+  renderShipments();
+}
+function setShipQtyFilter(mode) {
+  _shipQtyF = mode;
+  renderShipments();
+}
+
 // 出荷ファイルの列キーを生成（例: "0428_達実_エアー"）
 function makeShipFileKey_(s) {
   const mmdd = (s.shipDate || '').replace(/^\d{4}\//, '').replace('/', '');
   return `${mmdd}_${s.factory||''}_${s.transport||''}`;
 }
-// 列ラベル表示用（例: "0428 達実エアー"）
+// 列ラベル表示用（例: "0428 達実✈️"）
 function makeShipFileLabel_(key) {
   const [mmdd, factory, transport] = key.split('_');
   const icon = transport === 'エアー' ? '✈️' : '🚢';
   return `${mmdd} ${factory}${icon}`;
 }
 
+// ソート/フィルターボタンのアクティブ状態を更新
+function _updateShipBtnState() {
+  const sortIds  = { asc:'shipSortAsc', desc:'shipSortDesc' };
+  const qtyIds   = { all:'shipQtyAll', zero:'shipQtyZero', pos:'shipQtyPos' };
+  Object.entries(sortIds).forEach(([k,id]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (k === _shipSort) { el.style.background='var(--ink)'; el.style.color='white'; }
+    else                 { el.style.background=''; el.style.color=''; }
+  });
+  Object.entries(qtyIds).forEach(([k,id]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (k === _shipQtyF) { el.style.background='var(--ink)'; el.style.color='white'; }
+    else                  { el.style.background=''; el.style.color=''; }
+  });
+}
+
 function renderShipments() {
+  _updateShipBtnState();
+
   const search    = (document.getElementById('shipmentSearch')?.value || '').toLowerCase();
   const factoryF  = document.getElementById('shipmentFactoryFilter')?.value || '';
   const transportF= document.getElementById('shipmentTransportFilter')?.value || '';
@@ -1440,40 +1486,46 @@ function renderShipments() {
       factories.map(f => `<option value="${f}" ${f===cur?'selected':''}>${f}</option>`).join('');
   }
 
-  // ── 出荷ファイル列キーを日付順で収集 ──
-  const fileKeySet = new Map(); // key → {label, transport, factory, date}
+  // ── 出荷ファイル列キーを日付順で収集（全データから） ──
+  const fileKeySet = new Map();
   data.forEach(s => {
     const k = makeShipFileKey_(s);
-    if (!fileKeySet.has(k)) {
-      fileKeySet.set(k, {
-        label: makeShipFileLabel_(k),
-        transport: s.transport,
-        factory: s.factory,
-        shipDate: s.shipDate,
-      });
-    }
+    if (!fileKeySet.has(k)) fileKeySet.set(k, { label: makeShipFileLabel_(k), transport: s.transport, factory: s.factory });
   });
-  // 日付順ソート（キーの先頭MMDDで）
-  const fileKeys = [...fileKeySet.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([k,v]) => ({key:k, ...v}));
+  const fileKeys = [...fileKeySet.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>({key:k,...v}));
 
-  // ── KPIカード（出荷ファイル別） ──
+  // ── KPIカード：出荷ファイル別・合計金額表示 ──
+  const productMap = {};
+  (S.products || []).forEach(p => { if (p.itemNo) productMap[p.itemNo] = p; });
+
   const kpiGrid = document.getElementById('shipmentKpiGrid');
   if (kpiGrid) {
     const kpiColors = ['mint','amber','blue','purple','coral'];
     kpiGrid.innerHTML = fileKeys.map((fk, i) => {
-      const total = data.filter(s => makeShipFileKey_(s) === fk.key).reduce((sum, s) => sum + s.qty, 0);
+      const fileRows = data.filter(s => makeShipFileKey_(s) === fk.key);
+      const totalQty = fileRows.reduce((sum, s) => sum + s.qty, 0);
+      // 金額 = 出荷数 × 単価（productMapから取得）
+      const totalAmt = fileRows.reduce((sum, s) => {
+        const price = Number(productMap[s.itemNo]?.price || s.price || 0);
+        return sum + s.qty * price;
+      }, 0);
       const icon = fk.transport === 'エアー' ? '✈️' : '🚢';
-      const col = kpiColors[i % kpiColors.length];
+      const col  = kpiColors[i % kpiColors.length];
+      const amtStr = totalAmt >= 1000000
+        ? '¥' + (totalAmt/1000000).toFixed(1) + 'M'
+        : totalAmt >= 10000
+          ? '¥' + Math.round(totalAmt/10000) + '万'
+          : totalAmt > 0 ? '¥' + totalAmt.toLocaleString() : '—';
       return `<div class="kpi ${col}">
         <div class="kpi-icon">${icon}</div>
-        <div class="kpi-label" style="font-size:11px;font-weight:700">${fk.factory}</div>
-        <div class="kpi-value ${col}">${total.toLocaleString()}</div>
-        <div class="kpi-sub">${fk.label} 輸送中</div>
+        <div class="kpi-label" style="font-size:11px">${fk.label}</div>
+        <div class="kpi-value ${col}" style="font-size:22px">${amtStr}</div>
+        <div class="kpi-sub">${totalQty.toLocaleString()}点 輸送中</div>
       </div>`;
     }).join('');
   }
 
-  // ── フィルター適用（品番/商品名/工場/輸送） ──
+  // ── フィルター（ブランク検索・工場・輸送） ──
   let filtered = data.filter(s => {
     if (search && !((s.itemNo||'').toLowerCase().includes(search) || (s.name||'').toLowerCase().includes(search))) return false;
     if (factoryF   && s.factory   !== factoryF)   return false;
@@ -1481,12 +1533,42 @@ function renderShipments() {
     return true;
   });
 
+  // ── 品番×カラー×サイズ でグループ化（ピボット） ──
+  const groupMap = new Map();
+  filtered.forEach(s => {
+    const gKey = `${s.itemNo||''}__${s.color||''}__${s.size||''}`;
+    if (!groupMap.has(gKey)) {
+      groupMap.set(gKey, { itemNo:s.itemNo, name:s.name, color:s.color, size:s.size, byFile:{} });
+    }
+    const fk = makeShipFileKey_(s);
+    const g  = groupMap.get(gKey);
+    g.byFile[fk] = (g.byFile[fk] || 0) + s.qty;
+  });
+
+  // グループ化後のレコード
+  let groups = [...groupMap.values()];
+
+  // 出荷合計フィルター（グループ単位）
+  const activeKeys = fileKeys.filter(fk => filtered.some(s => makeShipFileKey_(s) === fk.key));
+  if (_shipQtyF !== 'all') {
+    groups = groups.filter(g => {
+      const total = activeKeys.reduce((sum, fk) => sum + (g.byFile[fk.key]||0), 0);
+      return _shipQtyF === 'zero' ? total === 0 : total > 0;
+    });
+  }
+
+  // 品番ソート
+  groups.sort((a, b) => {
+    const cmp = (a.itemNo||'').localeCompare(b.itemNo||'', 'ja');
+    return _shipSort === 'asc' ? cmp : -cmp;
+  });
+
   const tbody = document.getElementById('shipmentTableBody');
   const thead = document.getElementById('shipmentTableHead');
   const empty = document.getElementById('shipmentEmpty');
   const tbl   = document.getElementById('shipmentTable');
 
-  if (filtered.length === 0) {
+  if (groups.length === 0) {
     empty.style.display = 'block';
     tbl.style.display = 'none';
     document.getElementById('shipmentCount').textContent = '0件';
@@ -1496,59 +1578,44 @@ function renderShipments() {
   empty.style.display = 'none';
   tbl.style.display = 'table';
 
-  // ── フィルター済みデータに含まれる列キーのみ表示 ──
-  const activeKeys = fileKeys.filter(fk => filtered.some(s => makeShipFileKey_(s) === fk.key));
-
   // ── ヘッダー動的生成 ──
-  const thStyle = `padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);white-space:nowrap`;
-  const thRight = thStyle + ';text-align:right';
+  const thS = `padding:10px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);white-space:nowrap`;
+  const thR = thS + ';text-align:right';
   thead.innerHTML = `<tr>
-    <th style="${thStyle}">品番</th>
-    <th style="${thStyle}">商品名</th>
-    <th style="${thStyle}">カラー</th>
-    <th style="${thStyle}">サイズ</th>
+    <th style="${thS}">品番</th>
+    <th style="${thS}">商品名</th>
+    <th style="${thS}">カラー</th>
+    <th style="${thS}">サイズ</th>
     ${activeKeys.map(fk => {
       const col = fk.transport === 'エアー' ? 'var(--blue)' : 'var(--mint)';
-      return `<th style="${thRight};color:${col}">${fk.label}</th>`;
+      return `<th style="${thR};color:${col}">${fk.label}</th>`;
     }).join('')}
-    <th style="${thRight};color:var(--amber)">出荷合計</th>
+    <th style="${thR};color:var(--amber)">出荷合計</th>
   </tr>`;
 
-  // ── 品番×カラー×サイズ でグループ化してピボット ──
-  const groupMap = new Map();
-  filtered.forEach(s => {
-    const gKey = `${s.itemNo||''}__${s.color||''}__${s.size||''}`;
-    if (!groupMap.has(gKey)) {
-      groupMap.set(gKey, { itemNo: s.itemNo, name: s.name, color: s.color, size: s.size, byFile: {} });
-    }
-    const fk = makeShipFileKey_(s);
-    const g = groupMap.get(gKey);
-    g.byFile[fk] = (g.byFile[fk] || 0) + s.qty;
-  });
-
-  const tdBase = `padding:10px 12px;border-bottom:1px solid var(--rule)`;
-  tbody.innerHTML = [...groupMap.values()].map(g => {
-    const total = activeKeys.reduce((sum, fk) => sum + (g.byFile[fk.key] || 0), 0);
+  // ── ボディ描画 ──
+  const tdB = `padding:10px 12px;border-bottom:1px solid var(--rule)`;
+  tbody.innerHTML = groups.map(g => {
+    const total = activeKeys.reduce((sum, fk) => sum + (g.byFile[fk.key]||0), 0);
     const fileCells = activeKeys.map(fk => {
       const qty = g.byFile[fk.key] || 0;
       const col = fk.transport === 'エアー' ? 'var(--blue)' : 'var(--mint)';
-      return `<td style="${tdBase};text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:${qty>0?col:'var(--muted)'}">
+      return `<td style="${tdB};text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:${qty>0?col:'var(--muted)'}">
         ${qty > 0 ? qty.toLocaleString() : '—'}
       </td>`;
     }).join('');
     return `<tr>
-      <td style="${tdBase};font-family:'DM Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap">${g.itemNo||'—'}</td>
-      <td style="${tdBase};font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.name||''}">${g.name||'—'}</td>
-      <td style="${tdBase};max-width:110px;overflow:hidden">${g.color ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:94px" title="${g.color}">${g.color}</span>` : '—'}</td>
-      <td style="${tdBase}">${g.size ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:var(--blue-dim);color:var(--blue);font-size:11px;font-weight:700;font-family:'DM Mono',monospace;white-space:nowrap">${g.size}</span>` : '—'}</td>
+      <td style="${tdB};font-family:'DM Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap">${g.itemNo||'—'}</td>
+      <td style="${tdB};font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.name||''}">${g.name||'—'}</td>
+      <td style="${tdB};max-width:110px;overflow:hidden">${g.color ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:94px" title="${g.color}">${g.color}</span>` : '—'}</td>
+      <td style="${tdB}">${g.size ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:var(--blue-dim);color:var(--blue);font-size:11px;font-weight:700;font-family:'DM Mono',monospace;white-space:nowrap">${g.size}</span>` : '—'}</td>
       ${fileCells}
-      <td style="${tdBase};text-align:right;font-family:'DM Mono',monospace;font-weight:700;font-size:14px;color:var(--amber)">${total.toLocaleString()}</td>
+      <td style="${tdB};text-align:right;font-family:'DM Mono',monospace;font-weight:700;font-size:14px;color:var(--amber)">${total.toLocaleString()}</td>
     </tr>`;
   }).join('');
 
-  const skuCount = groupMap.size;
   const totalQty = filtered.reduce((s, r) => s + r.qty, 0);
-  document.getElementById('shipmentCount').textContent = `${skuCount.toLocaleString()}SKU`;
+  document.getElementById('shipmentCount').textContent = `${groups.length.toLocaleString()}SKU`;
   document.getElementById('shipmentTotalQty').textContent = `輸送中合計: ${totalQty.toLocaleString()}点`;
 }
 
@@ -1556,14 +1623,12 @@ function exportShipmentsCsv() {
   if (!S.shipments || S.shipments.length === 0) { toast('出荷データがありません', 'warn'); return; }
   const data = S.shipments;
   const escape = v => { const s = String(v??''); return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g,'""')}"` : s; };
-  // 列キー収集（日付順）
   const fileKeyMap = new Map();
   data.forEach(s => {
     const k = makeShipFileKey_(s);
     if (!fileKeyMap.has(k)) fileKeyMap.set(k, makeShipFileLabel_(k));
   });
   const fileKeys = [...fileKeyMap.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
-  // グループ化
   const groupMap = new Map();
   data.forEach(s => {
     const gKey = `${s.itemNo||''}__${s.color||''}__${s.size||''}`;
