@@ -578,8 +578,9 @@ a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
       </table>
       <div id="shipmentEmpty" class="empty" style="display:none">
         <div class="empty-icon">🚢</div>
-        <div class="empty-title">輸送中の商品なし</div>
-        <p style="font-size:12px;color:var(--muted);margin-top:4px">「出荷済み」フォルダにCSVを入れて同期してください</p>
+        <div class="empty-title" id="shipmentEmptyTitle">輸送中の商品なし</div>
+        <p id="shipmentEmptyMsg" style="font-size:12px;color:var(--muted);margin-top:4px">「出荷済み」フォルダにCSVを入れて同期してください</p>
+        <button id="shipmentResetBtn" onclick="resetShipFilters()" style="display:none;margin-top:12px;padding:8px 18px;background:var(--ink);color:white;border:none;border-radius:var(--r-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans JP',sans-serif">🔄 フィルターをリセット</button>
       </div>
     </div>
 
@@ -1414,24 +1415,19 @@ function exportReserveCsv() {
 // ════════════════════════════════
 
 // ── 状態 ──
-let _shipSort    = 'itemNo'; // 'itemNo' | ファイルキー | null
-let _shipSortDir = 1;         // 1=昇順 -1=降順
-let _shipQtyF    = 'all';    // 'all' | 'zero' | 'pos'
+let _shipSort    = 'itemNo';
+let _shipSortDir = 1;
+let _shipQtyF    = 'all';   // 出荷合計フィルター
+let _shipFileF   = {};       // { [fileKey]: 'all'|'zero'|'pos' } ファイル別フィルター
 
 function setShipSort(key) {
-  if (_shipSort === key) {
-    _shipSortDir *= -1;
-  } else {
-    _shipSort = key;
-    _shipSortDir = 1;
-  }
+  if (_shipSort === key) { _shipSortDir *= -1; }
+  else { _shipSort = key; _shipSortDir = 1; }
   renderShipments();
 }
 
-// 出荷合計列クリックでメニュー開閉
 function toggleShipQtyMenu(event) {
   event.stopPropagation();
-  // 他の在庫フィルターメニューを閉じる
   document.querySelectorAll('.stock-filter-menu').forEach(m => m.style.display = 'none');
   const menu = document.getElementById('shipQtyMenu');
   if (menu) menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
@@ -1439,6 +1435,24 @@ function toggleShipQtyMenu(event) {
 function setShipQtyFilter(mode) {
   _shipQtyF = mode;
   document.querySelectorAll('.stock-filter-menu').forEach(m => m.style.display = 'none');
+  renderShipments();
+}
+
+function toggleShipFileMenu(key, event) {
+  event.stopPropagation();
+  document.querySelectorAll('.stock-filter-menu').forEach(m => m.style.display = 'none');
+  const menu = document.getElementById('shipFileMenu_' + key);
+  if (menu) menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+}
+function setShipFileFilter(key, mode) {
+  _shipFileF[key] = mode;
+  document.querySelectorAll('.stock-filter-menu').forEach(m => m.style.display = 'none');
+  renderShipments();
+}
+
+function resetShipFilters() {
+  _shipQtyF  = 'all';
+  _shipFileF = {};
   renderShipments();
 }
 
@@ -1454,23 +1468,6 @@ function makeShipFileLabel_(key) {
   return `${mmdd} ${factory}${icon}`;
 }
 
-// ソート/フィルターボタンのアクティブ状態を更新
-function _updateShipBtnState() {
-  const sortIds  = { asc:'shipSortAsc', desc:'shipSortDesc' };
-  const qtyIds   = { all:'shipQtyAll', zero:'shipQtyZero', pos:'shipQtyPos' };
-  Object.entries(sortIds).forEach(([k,id]) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (k === _shipSort) { el.style.background='var(--ink)'; el.style.color='white'; }
-    else                 { el.style.background=''; el.style.color=''; }
-  });
-  Object.entries(qtyIds).forEach(([k,id]) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (k === _shipQtyF) { el.style.background='var(--ink)'; el.style.color='white'; }
-    else                  { el.style.background=''; el.style.color=''; }
-  });
-}
 
 function renderShipments() {
 
@@ -1558,6 +1555,16 @@ function renderShipments() {
     });
   }
 
+  // ファイル別フィルター
+  activeKeys.forEach(fk => {
+    const mode = _shipFileF[fk.key] || 'all';
+    if (mode === 'all') return;
+    groups = groups.filter(g => {
+      const qty = g.byFile[fk.key] || 0;
+      return mode === 'zero' ? qty === 0 : qty > 0;
+    });
+  });
+
   // 品番 / ファイル別数量 / 出荷合計 でソート
   groups.sort((a, b) => {
     let cmp = 0;
@@ -1583,6 +1590,12 @@ function renderShipments() {
     tbl.style.display = 'none';
     document.getElementById('shipmentCount').textContent = '0件';
     document.getElementById('shipmentTotalQty').textContent = '';
+    // フィルター起因かどうかで表示切り替え
+    const hasFilter = _shipQtyF !== 'all' || Object.values(_shipFileF).some(v => v && v !== 'all');
+    const hasData = (S.shipments || []).length > 0;
+    document.getElementById('shipmentEmptyTitle').textContent = hasFilter && hasData ? '絞り込み結果が0件です' : '輸送中の商品なし';
+    document.getElementById('shipmentEmptyMsg').textContent   = hasFilter && hasData ? '条件を変えるか、フィルターをリセットしてください' : '「出荷済み」フォルダにCSVを入れて同期してください';
+    document.getElementById('shipmentResetBtn').style.display = hasFilter && hasData ? 'inline-block' : 'none';
     return;
   }
   empty.style.display = 'none';
@@ -1593,54 +1606,53 @@ function renderShipments() {
   const thSort = thBase + 'cursor:pointer;';
   const thHover = 'onmouseover="this.style.color=\'var(--ink)\'" onmouseout="this.style.color=\'var(--muted)\'"';
 
-  // 品番ソートアイコン（商品一覧の sortIcon と同スタイル）
-  const shipSortIcon = () => {
-    if (_shipSort === null) return '<span style="opacity:0.3;font-size:9px;margin-left:3px">⇅</span>';
-    return _shipSort === 'asc'
-      ? '<span style="font-size:9px;margin-left:3px;color:var(--mint)">▲</span>'
-      : '<span style="font-size:9px;margin-left:3px;color:var(--mint)">▼</span>';
-  };
-
-  // 出荷合計フィルタードット
-  const qtyFilterDot = _shipQtyF !== 'all'
-    ? `<span style="color:var(--amber);margin-left:2px;font-size:10px">●</span>`
-    : '';
-
-  // 各出荷ファイル列のソートアイコン
-  const shipFileIcon = (key) => {
+  // ソートアイコン共通
+  const shipSortIcon = (key) => {
     if (_shipSort !== key) return '<span style="opacity:0.3;font-size:9px;margin-left:3px">⇅</span>';
     return _shipSortDir === 1
       ? '<span style="font-size:9px;margin-left:3px;color:var(--mint)">▲</span>'
       : '<span style="font-size:9px;margin-left:3px;color:var(--mint)">▼</span>';
   };
 
-  // 出荷合計フィルターメニュー
-  const qtyMenuItems = [
-    { mode:'all',  label:'すべて表示' },
-    { mode:'pos',  label:'1以上のみ' },
-    { mode:'zero', label:'0のみ表示' },
-  ].map(m => `<div onclick="setShipQtyFilter('${m.mode}')" style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;${_shipQtyF===m.mode?'color:var(--mint);background:var(--mint-dim)':''}" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${_shipQtyF===m.mode?'var(--mint-dim)':'white'}'">
-    ${_shipQtyF===m.mode?'✓ ':'　'}${m.label}
-  </div>`).join('');
+  // フィルターメニュー生成ヘルパー（onclickStr は `mode` を引数に取る関数呼び出し文字列）
+  const mkFilterMenu = (id, currentMode, onclickFn) => {
+    const items = [
+      { mode:'all',  label:'すべて表示' },
+      { mode:'pos',  label:'1以上のみ' },
+      { mode:'zero', label:'0のみ表示' },
+    ].map(m => `<div onclick="${onclickFn}('${m.mode}')" style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;${currentMode===m.mode?'color:var(--mint);background:var(--mint-dim)':''}" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${currentMode===m.mode?'var(--mint-dim)':'white'}'">
+      ${currentMode===m.mode?'✓ ':'　'}${m.label}
+    </div>`).join('');
+    return `<div id="${id}" class="stock-filter-menu" style="display:none;position:absolute;right:0;z-index:100;background:white;border:1.5px solid var(--rule);border-radius:var(--r-sm);box-shadow:var(--sh-lg);margin-top:4px;min-width:120px;text-align:left;color:var(--ink)">${items}</div>`;
+  };
+
+  // 出荷合計フィルタードット
+  const qtyDot = _shipQtyF !== 'all' ? `<span style="color:var(--amber);margin-left:2px;font-size:10px">●</span>` : '';
 
   thead.innerHTML = `<tr>
-    <th style="${thSort}text-align:left" onclick="setShipSort('itemNo')" ${thHover}>品番${shipSortIcon()}</th>
+    <th style="${thSort}text-align:left" onclick="setShipSort('itemNo')" ${thHover}>品番${shipSortIcon('itemNo')}</th>
     <th style="${thBase}text-align:left">商品名</th>
     <th style="${thBase}text-align:left">カラー</th>
     <th style="${thBase}text-align:left">サイズ</th>
     ${activeKeys.map(fk => {
       const col = fk.transport === 'エアー' ? 'var(--blue)' : 'var(--mint)';
       const bg  = fk.transport === 'エアー' ? '#eaf1fe' : '#e6f7f2';
-      return `<th style="${thSort}text-align:right;color:${col};background:${bg}" onclick="setShipSort('${fk.key}')" ${thHover}>${fk.label}${shipFileIcon(fk.key)}</th>`;
+      const fMode = _shipFileF[fk.key] || 'all';
+      const fDot  = fMode !== 'all' ? `<span style="color:var(--amber);margin-left:2px;font-size:10px">●</span>` : '';
+      const safeKey = fk.key.replace(/'/g, "\\'");
+      return `<th style="${thSort}text-align:right;color:${col};background:${bg};position:relative" onclick="setShipSort('${safeKey}')" ${thHover}>
+        <span style="display:inline-flex;align-items:center;gap:2px;justify-content:flex-end">
+          ${fk.label}${shipSortIcon(fk.key)}${fDot}
+          <span onclick="toggleShipFileMenu('${safeKey}',event)" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;background:rgba(0,0,0,0.08);font-size:9px;cursor:pointer;margin-left:2px;flex-shrink:0" title="絞り込み">▾</span>
+        </span>
+        ${mkFilterMenu('shipFileMenu_'+fk.key, fMode, `(m=>setShipFileFilter('${safeKey}',m))`)}
     }).join('')}
     <th style="${thSort}text-align:right;color:var(--amber);position:relative" onclick="setShipSort('total')" ${thHover}>
       <span style="display:inline-flex;align-items:center;gap:2px;justify-content:flex-end">
-        出荷合計${shipSortIcon()}${qtyFilterDot}
+        出荷合計${shipSortIcon('total')}${qtyDot}
         <span onclick="toggleShipQtyMenu(event)" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:3px;background:var(--rule);font-size:9px;cursor:pointer;margin-left:2px;flex-shrink:0" title="絞り込み">▾</span>
       </span>
-      <div id="shipQtyMenu" class="stock-filter-menu" style="display:none;position:absolute;right:0;z-index:100;background:white;border:1.5px solid var(--rule);border-radius:var(--r-sm);box-shadow:var(--sh-lg);margin-top:4px;min-width:120px;text-align:left;color:var(--ink)">
-        ${qtyMenuItems}
-      </div>
+      ${mkFilterMenu('shipQtyMenu', _shipQtyF, 'setShipQtyFilter')}
     </th>
   </tr>`;
 
