@@ -2460,8 +2460,8 @@ function renderProducts() {
     return `<tr>
       <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap">${p.itemNo||'—'}</td>
       <td class="col-jan${janVisible?'':' jan-hidden'}" style="padding:10px 12px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap">${p.jan||'—'}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.name||''}">${p.name||'—'}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);">${p.color ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600">${p.color}</span>` : '—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-weight:600;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.name||''}">${p.name||'—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);max-width:100px;">${p.color ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:var(--surface2);font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:84px;vertical-align:middle" title="${p.color}">${p.color}</span>` : '—'}</td>
       <td style="padding:10px 12px;border-bottom:1px solid var(--rule);">${p.size ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:var(--blue-dim);color:var(--blue);font-size:11px;font-weight:700;font-family:'DM Mono',monospace">${p.size}</span>` : '—'}</td>
       <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:var(--ink)">${priceStr}</td>
       ${chCells}
