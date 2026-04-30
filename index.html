@@ -2193,9 +2193,16 @@ function exportProductsCsv() {
     });
   }
 
+  // 工場出荷中マップを構築（商品一覧テーブルと同じロジック）
+  const shipmentMapCsv = {};
+  (S.shipments || []).forEach(s => {
+    const key = s.itemNo || '';
+    if (key) shipmentMapCsv[key] = (shipmentMapCsv[key] || 0) + (s.qty || 0);
+  });
+
   // ヘッダー行：表示中チャネルのみ
   const chHeaders = activeChs.map(ch => ch.label);
-  const headers = ['品番', 'JANコード', '商品名', 'カラー', 'サイズ', '価格', ...chHeaders, '合計'];
+  const headers = ['品番', 'JANコード', '商品名', 'カラー', 'サイズ', '価格', ...chHeaders, '合計', '工場出荷中'];
 
   const escape = v => {
     const s = String(v ?? '');
@@ -2203,8 +2210,9 @@ function exportProductsCsv() {
   };
 
   const csvRows = rows.map(p => {
-    const chVals = activeChs.map(ch => p[ch.key] || 0);
-    const total  = chVals.reduce((s, v) => s + v, 0);
+    const chVals  = activeChs.map(ch => p[ch.key] || 0);
+    const total   = chVals.reduce((s, v) => s + v, 0);
+    const shipQty = shipmentMapCsv[p.itemNo || ''] || 0;
     return [
       p.itemNo || '',
       p.jan    || '',
@@ -2214,6 +2222,7 @@ function exportProductsCsv() {
       p.price  || 0,
       ...chVals,
       total,
+      shipQty,
     ].map(escape).join(',');
   });
 
