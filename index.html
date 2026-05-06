@@ -313,6 +313,9 @@ a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
 .si-store-chip.hi { background: var(--mint-dim); color: #007a57; }
 .si-section-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--surface2); border-bottom: 1px solid var(--rule); font-size: 12px; font-weight: 700; }
 .si-print-area { display: none; }
+#page-shipinstruct th { padding: 7px 6px; font-size: 9px; }
+#page-shipinstruct td { padding: 6px 6px; font-size: 12px; }
+#page-shipinstruct table { border-spacing: 0; width: 100%; }
 @media print {
   nav, .si-upload-grid, .si-kpi-row, .toolbar, .si-print-hide { display: none !important; }
   .si-print-area { display: block !important; }
@@ -3880,83 +3883,114 @@ function parseCsvToObjects(buffer) {
 // ── ファイル読み込み ──
 function handleSiStockCsv(e) {
   const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    siStockData = parseCsvToObjects(ev.target.result);
+  readFileAutoEncoding(file, text => {
+    const { headers, rows } = parseCSV(text);
+    siStockData = rows.map(row => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h.trim()] = (row[i] || '').trim(); });
+      return obj;
+    });
     document.getElementById('siStockLabel').textContent = `✅ ${file.name}（${siStockData.length}行）`;
     document.getElementById('siStockZone').style.borderColor = 'var(--mint)';
     document.getElementById('siStockZone').style.background = 'var(--mint-dim)';
     toast(`📊 在庫分析データを読み込みました（${siStockData.length}行）`, 'success');
     tryBuildSiTable();
-  };
-  reader.readAsArrayBuffer(file);
+  });
 }
 
 function handleSiSalesCsv(e) {
   const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    siSalesData = parseCsvToObjects(ev.target.result);
+  readFileAutoEncoding(file, text => {
+    const { headers, rows } = parseCSV(text);
+    siSalesData = rows.map(row => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h.trim()] = (row[i] || '').trim(); });
+      return obj;
+    });
     document.getElementById('siSalesLabel').textContent = `✅ ${file.name}（${siSalesData.length}行）`;
     document.getElementById('siSalesZone').style.borderColor = 'var(--mint)';
     document.getElementById('siSalesZone').style.background = 'var(--mint-dim)';
     toast(`🛒 売上数量データを読み込みました（${siSalesData.length}行）`, 'success');
     tryBuildSiTable();
-  };
-  reader.readAsArrayBuffer(file);
+  });
 }
 
 // ── 両CSVが揃ったら突合・テーブル構築 ──
 function tryBuildSiTable() {
-  if (!siStockData || !siSalesData) return;
+  // 在庫分析データは必須。売上数量データはなくても動く
+  if (!siStockData) return;
+
+  // 列名の前後スペースを除去するヘルパー
+  const trimRow = row => {
+    const t = {};
+    Object.keys(row).forEach(k => { t[k.trim()] = (row[k]||'').toString().trim(); });
+    return t;
+  };
+
+  // CS品番を正規化（8922760.0 → "8922760"）
+  const normSku = v => v ? String(v).replace(/\.0+$/, '').trim() : '';
 
   // 在庫分析: CS品番+カラー+サイズ → 行マップ
   const stockMap = {};
   siStockData.forEach(row => {
-    // 列名の前後スペースを除去してアクセス
-    const trimmed = {};
-    Object.keys(row).forEach(k => { trimmed[k.trim()] = row[k]; });
-    const key = [trimmed['CS品番']||'', trimmed['カラー']||'', trimmed['サイズ']||''].join('|');
-    if (!key.startsWith('|')) stockMap[key] = trimmed;
+    const s = trimRow(row);
+    const csSku = normSku(s['CS品番']);
+    if (!csSku) return; // 空行スキップ
+    const key = [csSku, s['カラー']||'', s['サイズ']||''].join('|');
+    s['CS品番'] = csSku; // 正規化した値で上書き
+    stockMap[key] = s;
   });
 
-  // 売上数量: CS品番+カラー+サイズ → 注文数合計マップ
+  // 売上数量: CS品番+カラー+サイズ → 注文数合計マップ（任意）
   const salesMap = {};
-  siSalesData.forEach(row => {
-    const trimmed = {};
-    Object.keys(row).forEach(k => { trimmed[k.trim()] = row[k]; });
-    const key = [trimmed['CS品番']||'', trimmed['カラー']||'', trimmed['サイズ']||''].join('|');
-    if (!key.startsWith('|')) {
-      salesMap[key] = (salesMap[key] || 0) + (parseInt(trimmed['注文数']) || 0);
-    }
-  });
+  if (siSalesData) {
+    siSalesData.forEach(row => {
+      const s = trimRow(row);
+      const csSku = normSku(s['CS品番']);
+      if (!csSku) return;
+      const key = [csSku, s['カラー']||'', s['サイズ']||''].join('|');
+      salesMap[key] = (salesMap[key] || 0) + (parseInt(s['注文数']) || 0);
+    });
+  }
 
   // 在庫データを基準に突合
   siRows = [];
   Object.entries(stockMap).forEach(([key, s]) => {
-    const prevDay = parseInt(s['前日販売数']) || 0;
-    const orderQty = salesMap[key] || 0;
-    const combined = prevDay + orderQty;
+    const prevDay   = parseInt(s['前日販売数'])    || 0;
+    const orderQty  = salesMap[key]               || 0;
+    const combined  = prevDay + orderQty;
     const available = parseInt(s['販売可能数合計']) || 0;
+    const sales30   = parseInt(s['直近30日販売数']) || 0;
 
     // 自社在庫（スマレジ取込済みデータから品番でマッチ）
     const ownStock = getSiOwnStock(s['CS品番'] || '');
 
-    // 推奨フォロー数（合算数と販売可能数の差を埋める、ただし自社在庫上限）
-    const deficit = Math.max(0, combined - available);
-    const recommended = ownStock !== null ? Math.min(deficit, ownStock.total) : deficit;
+    // 推奨フォロー数（新ロジック）
+    // ① 自社在庫3以下はフォロー無し
+    // ② 直近30日販売数 - 販売可能数 = 不足数（マイナスは0）
+    // ③ フォロー数は自社在庫合計を上限
+    const ownTotal = ownStock ? ownStock.total : 0;
+    let recommended = 0;
+    if (ownTotal > 3) {
+      const deficit = Math.max(0, sales30 - available);
+      recommended = Math.min(deficit, ownTotal);
+    }
 
     siRows.push({
-      key, csSku: s['CS品番']||'', name: s['商品名']||s['商品名 ']||'',
-      color: s['カラー']||'', size: s['サイズ']||'',
+      key,
+      csSku:      s['CS品番']    || '',
+      name:       s['商品名']    || '',
+      color:      s['カラー']    || '',
+      size:       s['サイズ']    || '',
+      priceType:  s['価格タイプ'] || '',
+      salesType:  s['販売タイプ'] || '',
       prevDay, orderQty, combined, available,
-      ownStock,
-      recommended,
+      sales30, ownStock, recommended,
     });
   });
 
-  // 合算数降順でソート
-  siRows.sort((a,b) => b.combined - a.combined);
+  // 合算数降順でソート（同数は前日販売数降順）
+  siRows.sort((a,b) => b.combined - a.combined || b.prevDay - a.prevDay);
 
   document.getElementById('siKpiRow').style.display = 'grid';
   document.getElementById('siTableCard').style.display = 'block';
@@ -3967,7 +4001,7 @@ function tryBuildSiTable() {
 // スマレジ取込済みデータから自社在庫を取得
 function getSiOwnStock(csSku) {
   if (!csSku) return null;
-  const products = JSON.parse(localStorage.getItem('ppt_products') || '[]');
+  const products = S.products || [];
   const match = products.find(p => String(p.itemNo||'').trim() === String(csSku).trim());
   if (!match) return null;
   const wh = match.warehouse||0, on = match.shopify||0;
@@ -4022,28 +4056,29 @@ function renderSiTable() {
       : `<span style="color:var(--muted)">—</span>`;
 
     return `<tr class="${rowCls}">
-      <td class="mono text-center" style="color:var(--muted);font-size:11px">${statusIcon} ${i+1}</td>
-      <td class="mono fw7" style="font-size:12px">${r.csSku}</td>
-      <td style="font-size:12px;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.name}">${r.name}</td>
-      <td style="font-size:12px">${r.color}</td>
-      <td style="font-size:12px">${r.size}</td>
-      <td class="text-right mono fw7">${r.combined}
+      <td class="mono text-center" style="color:var(--muted);font-size:11px;width:36px">${statusIcon} ${i+1}</td>
+      <td class="mono fw7" style="font-size:12px;width:72px;white-space:nowrap">${r.csSku}</td>
+      <td style="font-size:12px;min-width:180px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.name}">${r.name}</td>
+      <td style="font-size:12px;width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.color}">${r.color}</td>
+      <td style="font-size:12px;width:55px;white-space:nowrap">${r.size}</td>
+      <td style="font-size:11px;color:var(--ink2);width:52px;white-space:nowrap">${r.priceType||'—'}</td>
+      <td style="font-size:11px;color:var(--ink2);width:48px;white-space:nowrap">${r.salesType||'—'}</td>
+      <td class="text-right mono fw7" style="width:70px">${r.combined}
         <div style="font-size:10px;color:var(--muted);font-weight:400">${r.prevDay}+${r.orderQty}</div>
       </td>
-      <td class="text-right mono">${r.available}</td>
-      <td class="text-right">${ownTotalHtml}</td>
-      <td>${storeHtml}</td>
-      <td class="text-right mono" style="color:var(--blue);font-weight:700">${r.recommended}</td>
-      <td class="text-center">
+      <td class="text-right mono" style="width:70px">${r.available}</td>
+      <td class="text-right" style="width:70px">${ownTotalHtml}</td>
+      <td class="text-right mono" style="color:var(--ink2);width:70px">${r.sales30 || '—'}</td>
+      <td class="text-right mono" style="color:var(--blue);font-weight:700;width:55px">${r.recommended}</td>
+      <td class="text-center" style="width:72px">
         <input type="number" class="si-qty-input${userQty !== '' ? ' changed' : ''}"
           min="0" value="${userQty}"
           placeholder="${r.recommended}"
           oninput="onSiQtyInput('${key}', this)"
           onchange="onSiQtyInput('${key}', this)">
       </td>
-      <td>
+      <td style="min-width:120px;max-width:160px">
         <input type="text" class="si-memo-input" value="${userMemo}"
-          placeholder="直営優先・入荷待ちなど"
           oninput="onSiMemoInput('${key}', this)">
       </td>
     </tr>`;
@@ -4090,11 +4125,19 @@ function siAutoFill() {
 
 // CSV出力
 function exportSiCsv() {
-  const header = ['CS品番','商品名','カラー','サイズ','前日販売数','注文数','合算数','販売可能数(ZOZO)','自社在庫合計','倉庫','オンライン','代官山','名古屋','神戸','bazar','推奨フォロー数','確定フォロー数','メモ'];
+  const header = ['CS品番','商品名','カラー','サイズ','価格タイプ','販売タイプ','前日販売数','注文数','販売合計','販売可能数(ZOZO)','自社在庫合計','直近30日販売数','推奨フォロー数','確定フォロー数','メモ'];
   const rows = siRows.map(r => {
-    const own = r.ownStock || {total:0,warehouse:0,online:0,daikanyama:0,nagoya:0,kobe:0,bazar:0};
+    const own = r.ownStock || {total:0};
     const qty = siUserQty[r.key] !== undefined ? siUserQty[r.key] : r.recommended;
-    return [r.csSku, r.name, r.color, r.size, r.prevDay, r.orderQty, r.combined, r.available, own.total, own.warehouse, own.online, own.daikanyama, own.nagoya, own.kobe, own.bazar, r.recommended, qty, siUserMemo[r.key]||''];
+    return [
+      r.csSku, r.name, r.color, r.size,
+      r.priceType, r.salesType,
+      r.prevDay, r.orderQty, r.combined,
+      r.available, own.total,
+      r.sales30,
+      r.recommended, qty,
+      siUserMemo[r.key]||''
+    ];
   });
   const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const bom = '\uFEFF';
@@ -4222,7 +4265,7 @@ function setupDropZone(zoneId, inputId, handler) {
     </div>
     <!-- 売上数量データ -->
     <div class="card" style="margin-bottom:0">
-      <div class="card-head"><div class="card-head-title">🛒 指定期間の売上数量 <span style="font-size:10px;font-weight:400;color:var(--muted)">（ZOZOダウンロード）</span></div></div>
+      <div class="card-head"><div class="card-head-title">🛒 指定期間の売上数量 <span style="font-size:10px;font-weight:400;color:var(--muted)">（ZOZOダウンロード）</span> <span style="font-size:10px;padding:2px 7px;border-radius:4px;background:#f0f0e8;color:var(--muted);font-weight:600">任意</span></div></div>
       <div class="card-body" style="padding:14px">
         <div class="upload-zone" id="siSalesZone" onclick="document.getElementById('siSalesInput').click()">
           <div class="upload-icon">🛒</div>
@@ -4261,23 +4304,23 @@ function setupDropZone(zoneId, inputId, handler) {
       </div>
     </div>
     <div class="tbl-wrap">
-      <table>
+      <table style="table-layout:fixed;width:100%">
         <thead>
           <tr style="background:var(--surface2)">
-            <th style="width:40px">#</th>
-            <th>CS品番</th>
+            <th style="width:36px">#</th>
+            <th style="width:72px">CS品番</th>
             <th>商品名</th>
-            <th>カラー</th>
-            <th>サイズ</th>
-            <th class="text-right" title="前日販売数 + 注文数">合算数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">前日+注文</span></th>
-            <th class="text-right">販売可能数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">ZOZO</span></th>
-            <th class="text-right" title="倉庫+オンライン+代官山+名古屋+神戸+bazar">自社在庫<br><span style="font-size:9px;font-weight:400;color:var(--muted)">合計</span></th>
-            <th>
-              <span title="倉庫/オンライン/代官山/名古屋/神戸/bazar">店舗別在庫</span>
-            </th>
-            <th class="text-right">推奨<br><span style="font-size:9px;font-weight:400;color:var(--muted)">フォロー</span></th>
-            <th style="width:80px" class="text-center">フォロー数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">確定入力</span></th>
-            <th>メモ</th>
+            <th style="width:70px">カラー</th>
+            <th style="width:55px">サイズ</th>
+            <th style="width:52px">価格タイプ</th>
+            <th style="width:48px">販売タイプ</th>
+            <th class="text-right" style="width:68px" title="前日販売数 + 注文数">販売合計<br><span style="font-size:9px;font-weight:400;color:var(--muted)">前日+注文</span></th>
+            <th class="text-right" style="width:64px">販売可能数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">ZOZO</span></th>
+            <th class="text-right" style="width:60px" title="倉庫+オンライン+代官山+名古屋+神戸+bazar">自社在庫<br><span style="font-size:9px;font-weight:400;color:var(--muted)">合計</span></th>
+            <th class="text-right" style="width:60px" title="直近30日販売数（ZOZO在庫分析X列）">直近30日<br><span style="font-size:9px;font-weight:400;color:var(--muted)">販売数</span></th>
+            <th class="text-right" style="width:50px">推奨<br><span style="font-size:9px;font-weight:400;color:var(--muted)">フォロー</span></th>
+            <th style="width:72px" class="text-center">フォロー数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">確定入力</span></th>
+            <th style="width:130px">メモ</th>
           </tr>
         </thead>
         <tbody id="siTableBody"></tbody>
