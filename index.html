@@ -313,9 +313,6 @@ a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
 .si-store-chip.hi { background: var(--mint-dim); color: #007a57; }
 .si-section-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--surface2); border-bottom: 1px solid var(--rule); font-size: 12px; font-weight: 700; }
 .si-print-area { display: none; }
-#page-shipinstruct th { padding: 7px 6px; font-size: 9px; }
-#page-shipinstruct td { padding: 6px 6px; font-size: 12px; }
-#page-shipinstruct table { border-spacing: 0; width: 100%; }
 @media print {
   nav, .si-upload-grid, .si-kpi-row, .toolbar, .si-print-hide { display: none !important; }
   .si-print-area { display: block !important; }
@@ -752,83 +749,140 @@ a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
 <!-- ══════════════ PAGE: ORDER ══════════════ -->
 <div class="page" id="page-order">
 <div class="container">
-  <div class="section-title">🏭 工場発注スケジュール</div>
-  <div class="section-sub">発注依頼の管理・リードタイム追跡・納期管理</div>
+  <div class="section-title">🏭 工場発注管理</div>
+  <div class="section-sub">注文残の確認・発注の追加・入荷CSVの読み込み</div>
 
-  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+  <!-- KPI -->
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
     <div class="kpi blue">
       <div class="kpi-icon">📋</div>
-      <div class="kpi-label">発注中</div>
+      <div class="kpi-label">発注SKU数</div>
       <div class="kpi-value blue" id="orderKpiActive">0</div>
-      <div class="kpi-sub">件</div>
+      <div class="kpi-sub">SKU</div>
     </div>
     <div class="kpi amber">
-      <div class="kpi-icon">⏰</div>
-      <div class="kpi-label">納期30日以内</div>
-      <div class="kpi-value amber" id="orderKpiSoon">0</div>
-      <div class="kpi-sub">件</div>
-    </div>
-    <div class="kpi coral">
-      <div class="kpi-icon">🚨</div>
-      <div class="kpi-label">遅延リスク</div>
-      <div class="kpi-value coral" id="orderKpiLate">0</div>
-      <div class="kpi-sub">件</div>
+      <div class="kpi-icon">📦</div>
+      <div class="kpi-label">注文残合計</div>
+      <div class="kpi-value amber" id="orderKpiRemaining">0</div>
+      <div class="kpi-sub">点</div>
     </div>
     <div class="kpi mint">
       <div class="kpi-icon">✅</div>
-      <div class="kpi-label">入荷済み（今月）</div>
-      <div class="kpi-value mint" id="orderKpiDone">0</div>
-      <div class="kpi-sub">件</div>
+      <div class="kpi-label">入荷累計</div>
+      <div class="kpi-value mint" id="orderKpiArrived">0</div>
+      <div class="kpi-sub">点</div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="toolbar">
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input type="text" placeholder="SKU・商品名・工場名..." id="orderSearch" oninput="renderOrders()">
+  <!-- タブ -->
+  <div style="display:flex;gap:0;border-bottom:2px solid var(--rule);margin-bottom:20px;">
+    <button id="orderTab1" onclick="switchOrderTab(1)"
+      style="padding:10px 20px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--blue);margin-bottom:-2px;color:var(--blue)">
+      📊 注文残一覧
+    </button>
+    <button id="orderTab2" onclick="switchOrderTab(2)"
+      style="padding:10px 20px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted)">
+      📋 発注履歴
+    </button>
+    <button id="orderTab3" onclick="switchOrderTab(3)"
+      style="padding:10px 20px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted)">
+      🗂 取り込み履歴
+    </button>
+  </div>
+
+  <!-- ── TAB1: 注文残一覧 ── -->
+  <div id="orderTabPane1">
+    <div class="card">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="品番・商品名・カラー..." id="remainingSearch" oninput="renderRemaining()">
+        </div>
+        <div class="spacer"></div>
+        <button class="btn btn-ghost" onclick="exportRemainingCsv()">📥 CSV出力</button>
       </div>
-      <select id="orderStatusFilter" onchange="renderOrders()">
-        <option value="">すべてのステータス</option>
-        <option value="draft">下書き</option>
-        <option value="ordered">発注済み</option>
-        <option value="production">生産中</option>
-        <option value="shipped">出荷済み</option>
-        <option value="received">入荷済み</option>
-      </select>
-      <div class="spacer"></div>
-      <button class="btn btn-primary" onclick="openOrderModal()">＋ 発注を追加</button>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>SKU / 商品名</th>
-            <th>工場名</th>
-            <th class="text-right">発注数量</th>
-            <th>発注日</th>
-            <th>納期</th>
-            <th>残日数</th>
-            <th>ステータス</th>
-            <th>進捗</th>
-            <th class="text-center">操作</th>
-          </tr>
-        </thead>
-        <tbody id="orderTable"></tbody>
-      </table>
-      <div id="orderEmpty" class="empty" style="display:none">
-        <div class="empty-icon">🏭</div>
-        <div class="empty-title">発注データなし</div>
-        <p style="font-size:12px;color:var(--muted);margin-top:4px">「＋ 発注を追加」から登録してください</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr id="remainingThead"></tr>
+          </thead>
+          <tbody id="remainingTable"></tbody>
+        </table>
+        <div id="remainingEmpty" class="empty" style="display:none">
+          <div class="empty-icon">📦</div>
+          <div class="empty-title">注文残なし</div>
+          <p style="font-size:12px;color:var(--muted);margin-top:4px">発注データを追加するか、クラウド同期してください</p>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- GANTT-STYLE TIMELINE -->
-  <div class="card">
-    <div class="card-head"><div class="card-head-title">📅 納期タイムライン（今後90日）</div></div>
-    <div class="card-body" id="timelineArea" style="overflow-x:auto;"></div>
+  <!-- ── TAB2: 発注履歴 ── -->
+  <div id="orderTabPane2" style="display:none">
+    <div class="card">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="品番・商品名・工場名..." id="orderSearch" oninput="renderOrders()">
+        </div>
+        <div class="spacer"></div>
+        <button class="btn btn-ghost" onclick="exportOrdersCsv()">📥 CSV出力</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="setOrderSort('sku')" style="cursor:pointer">品番 <span id="orderSortSku"></span></th>
+              <th onclick="setOrderSort('name')" style="cursor:pointer">商品名 <span id="orderSortName"></span></th>
+              <th onclick="setOrderSort('color')" style="cursor:pointer">カラー <span id="orderSortColor"></span></th>
+              <th onclick="setOrderSort('size')" style="cursor:pointer">サイズ <span id="orderSortSize"></span></th>
+              <th onclick="setOrderSort('factory')" style="cursor:pointer">工場名 <span id="orderSortFactory"></span></th>
+              <th class="text-right" onclick="setOrderSort('qty')" style="cursor:pointer">発注数 <span id="orderSortQty"></span></th>
+              <th onclick="setOrderSort('orderDate')" style="cursor:pointer">発注日 <span id="orderSortOrderDate"></span></th>
+              <th onclick="setOrderSort('deadline')" style="cursor:pointer">納期 <span id="orderSortDeadline"></span></th>
+              <th class="text-center">操作</th>
+            </tr>
+          </thead>
+          <tbody id="orderTable"></tbody>
+        </table>
+        <div id="orderEmpty" class="empty" style="display:none">
+          <div class="empty-icon">🏭</div>
+          <div class="empty-title">発注データなし</div>
+          <p style="font-size:12px;color:var(--muted);margin-top:4px">「＋ 発注を追加」から登録してください</p>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <!-- ── TAB3: 取り込み履歴 ── -->
+  <div id="orderTabPane3" style="display:none">
+    <div class="card">
+      <div class="toolbar">
+        <div style="font-size:12px;color:var(--muted)">発注・入荷CSVの取り込み操作履歴</div>
+        <div class="spacer"></div>
+        <button class="btn btn-ghost btn-sm" onclick="clearImportLog()" style="color:var(--coral);border-color:var(--coral)">🗑 履歴を削除</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>日時</th>
+              <th>種別</th>
+              <th>ファイル名</th>
+              <th class="text-right">件数</th>
+            </tr>
+          </thead>
+          <tbody id="importLogTable"></tbody>
+        </table>
+        <div id="importLogEmpty" class="empty" style="display:none">
+          <div class="empty-icon">🗂</div>
+          <div class="empty-title">取り込み履歴なし</div>
+          <p style="font-size:12px;color:var(--muted);margin-top:4px">発注・入荷CSVを取り込むと履歴が記録されます</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 </div>
 
@@ -898,36 +952,144 @@ a.lnk { color: var(--blue); text-decoration: underline; cursor: pointer; }
     </div>
     <div class="modal-body">
       <div class="form-row">
-        <div class="fg"><label>SKUコード</label><input type="text" id="oSku" placeholder="例：KD-2024-001-90"></div>
-        <div class="fg"><label>商品名 <span class="req">*</span></label><input type="text" id="oName" placeholder="例：フラワープリントワンピース 90cm"></div>
+        <div class="fg"><label>品番</label><input type="text" id="oSku" placeholder="例：PP001"></div>
+        <div class="fg"><label>商品名 <span class="req">*</span></label><input type="text" id="oName" placeholder="例：チュールスカート"></div>
       </div>
       <div class="form-row">
-        <div class="fg"><label>工場名 <span class="req">*</span></label><input type="text" id="oFactory" placeholder="例：上海ファクトリーA"></div>
-        <div class="fg"><label>担当者</label><input type="text" id="oContact" placeholder="例：田中太郎"></div>
+        <div class="fg"><label>カラー</label><input type="text" id="oColor" placeholder="例：ピンク"></div>
+        <div class="fg"><label>サイズ</label><input type="text" id="oSize" placeholder="例：90"></div>
       </div>
-      <div class="form-row3">
-        <div class="fg"><label>発注数量 <span class="req">*</span></label><input type="number" id="oQty" min="1" placeholder="例：500"></div>
-        <div class="fg"><label>単価（円）</label><input type="number" id="oPrice" min="0" placeholder="例：800"></div>
-        <div class="fg"><label>カラー / サイズ</label><input type="text" id="oVariant" placeholder="例：ピンク/90cm"></div>
+      <div class="form-row">
+        <div class="fg"><label>工場名 <span class="req">*</span></label><input type="text" id="oFactory" placeholder="例：達実"></div>
+        <div class="fg"><label>発注数量 <span class="req">*</span></label><input type="number" id="oQty" min="1" placeholder="例：100"></div>
       </div>
       <div class="form-row">
         <div class="fg"><label>発注日 <span class="req">*</span></label><input type="date" id="oOrderDate"></div>
-        <div class="fg"><label>納期 <span class="req">*</span></label><input type="date" id="oDeadline"></div>
+        <div class="fg"><label>希望納期 <span class="req">*</span></label><input type="date" id="oDeadline"></div>
       </div>
-      <div class="fg"><label>ステータス</label>
-        <select id="oStatus">
-          <option value="draft">下書き</option>
-          <option value="ordered" selected>発注済み</option>
-          <option value="production">生産中</option>
-          <option value="shipped">出荷済み</option>
-          <option value="received">入荷済み</option>
-        </select>
-      </div>
-      <div class="fg"><label>メモ</label><textarea id="oNote" rows="2" placeholder="例：春夏コレクション第1弾、ZOZOセール向け優先"></textarea></div>
+      <div class="fg"><label>メモ</label><textarea id="oNote" rows="2" placeholder="例：春夏コレクション第1弾"></textarea></div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('orderModal')">キャンセル</button>
       <button class="btn btn-primary" onclick="saveOrder()">💾 登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Arrival CSV Modal -->
+<div class="overlay" id="arrivalModal">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-head">
+      <div class="modal-title">📦 入荷CSVを読み込む</div>
+      <button class="modal-close" onclick="closeModal('arrivalModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">CSVの列順（1行目はヘッダー行）</div>
+          <div style="background:var(--ink);color:#a8ff78;font-family:'DM Mono',monospace;font-size:11px;padding:10px 12px;border-radius:var(--r-sm);line-height:2.2;">
+            品番, 商品名, カラー, サイズ, 入荷数
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">記入例</div>
+          <div style="background:var(--surface2);font-family:'DM Mono',monospace;font-size:11px;padding:10px 12px;border-radius:var(--r-sm);line-height:2.2;border:1px solid var(--rule);">
+            8919176, がま口保冷バック, リボン柄, F, 60<br>
+            8919766, がま口保冷バック, マイメロ, M, 80
+          </div>
+        </div>
+      </div>
+      <div class="upload-zone" id="arrivalCsvZone" onclick="document.getElementById('arrivalCsvInput').click()">
+        <div class="upload-icon">📦</div>
+        <div class="upload-title" id="arrivalCsvZoneLabel">入荷CSVをドロップ または クリック</div>
+        <div class="upload-sub">品番・商品名・カラー・サイズ・入荷数</div>
+      </div>
+      <input type="file" id="arrivalCsvInput" accept=".csv" style="display:none" onchange="handleArrivalCsvUpload(event)">
+      <div id="arrivalCsvPreview" style="display:none;margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:700;" id="arrivalCsvPreviewTitle"></div>
+          <button class="btn btn-ghost btn-sm" onclick="cancelArrivalCsv()">✕ キャンセル</button>
+        </div>
+        <div class="tbl-wrap" style="max-height:220px;overflow-y:auto;border:1px solid var(--rule);border-radius:var(--r-sm);">
+          <table style="width:100%">
+            <thead><tr style="background:var(--surface2)">
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted)">品番</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted)">商品名</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted)">カラー</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted)">サイズ</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);text-align:right">入荷数</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);text-align:right">注文残（現在）</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);text-align:right">入荷後残数</th>
+            </tr></thead>
+            <tbody id="arrivalCsvPreviewBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('arrivalModal')">キャンセル</button>
+      <button class="btn btn-primary" id="arrivalImportBtn" style="display:none" onclick="applyArrivalCsv()">✅ 入荷を反映する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Order CSV Import Modal -->
+<div class="overlay" id="orderCsvModal">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-head">
+      <div class="modal-title">📂 発注CSVを一括追加</div>
+      <button class="modal-close" onclick="closeModal('orderCsvModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- フォーマット説明 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">CSVの列順（1行目はヘッダー行）</div>
+          <div style="background:var(--ink);color:#a8ff78;font-family:'DM Mono',monospace;font-size:11px;padding:10px 12px;border-radius:var(--r-sm);line-height:2.2;">
+            発注日, 工場名, 品番, 商品名,<br>カラー, サイズ, 発注数, 希望納期
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">記入例</div>
+          <div style="background:var(--surface2);font-family:'DM Mono',monospace;font-size:11px;padding:10px 12px;border-radius:var(--r-sm);line-height:2.2;border:1px solid var(--rule);">
+            2025/05/10, 達実, PP001, チュールスカート, ピンク, 90, 100, 2025/08/01<br>
+            2025/05/10, 達実, PP001, チュールスカート, ブルー, 100, 80, 2025/08/01
+          </div>
+        </div>
+      </div>
+      <!-- アップロードゾーン -->
+      <div class="upload-zone" id="orderCsvZone" onclick="document.getElementById('orderCsvInput').click()">
+        <div class="upload-icon">📂</div>
+        <div class="upload-title" id="orderCsvZoneLabel">発注CSVをドロップ または クリック</div>
+        <div class="upload-sub">発注日・工場名・品番・商品名・カラー・サイズ・発注数・希望納期</div>
+      </div>
+      <input type="file" id="orderCsvInput" accept=".csv" style="display:none" onchange="handleOrderCsvUpload(event)">
+      <!-- プレビュー -->
+      <div id="orderCsvPreview" style="display:none;margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:700;" id="orderCsvPreviewTitle"></div>
+          <button class="btn btn-ghost btn-sm" onclick="cancelOrderCsvUpload()">✕ キャンセル</button>
+        </div>
+        <div class="tbl-wrap" style="max-height:220px;overflow-y:auto;border:1px solid var(--rule);border-radius:var(--r-sm);">
+          <table style="width:100%">
+            <thead><tr style="background:var(--surface2)">
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">発注日</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">工場名</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">品番</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">商品名</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">カラー</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">サイズ</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap;text-align:right">発注数</th>
+              <th style="padding:7px 10px;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">希望納期</th>
+            </tr></thead>
+            <tbody id="orderCsvPreviewBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('orderCsvModal')">キャンセル</button>
+      <button class="btn btn-primary" id="orderCsvImportBtn" style="display:none" onclick="importOrderCsv()">✅ 追加する</button>
     </div>
   </div>
 </div>
@@ -1137,6 +1299,9 @@ function safeGetItem(key, fallback) {
 const S = {
   transit:  safeGetItem('hub_transit', []),
   orders:   safeGetItem('hub_orders', []),
+  arrivals:       safeGetItem('hub_arrivals', []),
+  importLog:      safeGetItem('hub_import_log', []),
+  orderRemaining: safeGetItem('hub_order_remaining', []),
   channels: safeGetItem('hub_channels', {warehouse:0,shopify:0,daikanyama:0,nagoya:0,kobe:0,bazar:0,linegift:0,zozo:0,amazon:0,rakuten:0}),
   forecast: [],
   reserves: [],
@@ -1942,132 +2107,504 @@ const orderStatusMap={
 const orderProgress={draft:5,ordered:20,production:55,shipped:80,received:100};
 function orderBadge(s){const m=orderStatusMap[s]||{label:s,cls:'badge-gray'};return `<span class="badge ${m.cls}">${m.label}</span>`;}
 function daysUntil(d){return Math.ceil((new Date(d)-new Date())/(1000*60*60*24));}
-function openOrderModal(id){
-  S.editOrderId=id||null;
-  const o=id?S.orders.find(x=>x.id===id):null;
-  document.getElementById('orderModalTitle').textContent=o?'発注を編集':'発注を追加';
-  document.getElementById('oSku').value=o?.sku||'';
-  document.getElementById('oName').value=o?.name||'';
-  document.getElementById('oFactory').value=o?.factory||'';
-  document.getElementById('oContact').value=o?.contact||'';
-  document.getElementById('oQty').value=o?.qty||'';
-  document.getElementById('oPrice').value=o?.price||'';
-  document.getElementById('oVariant').value=o?.variant||'';
-  document.getElementById('oOrderDate').value=o?.orderDate||new Date().toISOString().slice(0,10);
-  document.getElementById('oDeadline').value=o?.deadline||'';
-  document.getElementById('oStatus').value=o?.status||'ordered';
-  document.getElementById('oNote').value=o?.note||'';
-  openModal('orderModal');
+// ════════════════════════════════
+// 工場発注：タブ切り替え
+// ════════════════════════════════
+function switchOrderTab(n) {
+  document.getElementById('orderTabPane1').style.display = n===1?'':'none';
+  document.getElementById('orderTabPane2').style.display = n===2?'':'none';
+  document.getElementById('orderTabPane3').style.display = n===3?'':'none';
+  const activeStyle = 'padding:10px 20px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;margin-bottom:-2px;border-bottom:2px solid var(--blue);color:var(--blue)';
+  const inactiveStyle = 'padding:10px 20px;font-size:13px;font-weight:700;border:none;background:none;cursor:pointer;margin-bottom:-2px;border-bottom:2px solid transparent;color:var(--muted)';
+  document.getElementById('orderTab1').style.cssText = n===1 ? activeStyle : inactiveStyle;
+  document.getElementById('orderTab2').style.cssText = n===2 ? activeStyle : inactiveStyle;
+  document.getElementById('orderTab3').style.cssText = n===3 ? activeStyle : inactiveStyle;
+  if (n===3) renderImportLog();
 }
-function saveOrder(){
-  const name=document.getElementById('oName').value.trim();
-  const factory=document.getElementById('oFactory').value.trim();
-  const qty=parseInt(document.getElementById('oQty').value);
-  const orderDate=document.getElementById('oOrderDate').value;
-  const deadline=document.getElementById('oDeadline').value;
-  if(!name||!factory||isNaN(qty)||!orderDate||!deadline){toast('必須項目を入力してください','error');return;}
-  const obj={
-    id:S.editOrderId||nextOid++,
-    sku:document.getElementById('oSku').value.trim(),
-    name, factory, contact:document.getElementById('oContact').value.trim(),
-    qty, price:parseInt(document.getElementById('oPrice').value)||0,
-    variant:document.getElementById('oVariant').value.trim(),
-    orderDate, deadline,
-    status:document.getElementById('oStatus').value,
-    note:document.getElementById('oNote').value.trim(),
-  };
-  if(S.editOrderId){const i=S.orders.findIndex(x=>x.id===S.editOrderId);S.orders[i]=obj;}
-  else S.orders.unshift(obj);
-  save();closeModal('orderModal');renderOrders();renderTimeline();
-  updateOrderKpi();
-  toast(S.editOrderId?'✏️ 更新しました':'✅ 発注を追加しました','success');
-}
-function advanceOrder(id){
-  const order=S.orders.find(x=>x.id===id);if(!order)return;
-  const seq=['draft','ordered','production','shipped','received'];
-  const cur=seq.indexOf(order.status);
-  if(cur<seq.length-1){order.status=seq[cur+1];save();renderOrders();renderTimeline();updateOrderKpi();toast(`▶ ステータスを「${orderStatusMap[order.status].label}」に更新`,'success');}
-}
-function deleteOrder(id){S.orders=S.orders.filter(x=>x.id!==id);save();renderOrders();renderTimeline();updateOrderKpi();toast('🗑️ 削除しました');}
-function updateOrderKpi(){
-  const active=S.orders.filter(o=>['ordered','production','shipped'].includes(o.status));
-  const today=new Date();
-  document.getElementById('orderKpiActive').textContent=active.length;
-  document.getElementById('orderKpiSoon').textContent=active.filter(o=>daysUntil(o.deadline)<=30&&daysUntil(o.deadline)>0).length;
-  document.getElementById('orderKpiLate').textContent=active.filter(o=>daysUntil(o.deadline)<=0).length;
-  const thisMonth=new Date();
-  document.getElementById('orderKpiDone').textContent=S.orders.filter(o=>o.status==='received'&&new Date(o.deadline).getMonth()===today.getMonth()).length;
-}
-function renderOrders(){
-  const search=document.getElementById('orderSearch').value.toLowerCase();
-  const stF=document.getElementById('orderStatusFilter').value;
-  let rows=S.orders.filter(o=>{
-    const ms=!search||(o.name+o.sku+o.factory).toLowerCase().includes(search);
-    const mst=!stF||o.status===stF;
-    return ms&&mst;
+
+// ════════════════════════════════
+// 取り込み履歴
+// ════════════════════════════════
+function addImportLog(type, fileName, count) {
+  if (!S.importLog) S.importLog = [];
+  S.importLog.unshift({
+    date: new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}),
+    type,   // '発注' or '入荷'
+    fileName,
+    count,
   });
-  const tbody=document.getElementById('orderTable');
-  const empty=document.getElementById('orderEmpty');
-  if(rows.length===0){tbody.innerHTML='';empty.style.display='block';return;}
-  empty.style.display='none';
-  tbody.innerHTML=rows.map(o=>{
-    const days=daysUntil(o.deadline);
-    const daysColor=days<0?'var(--coral)':days<=30?'var(--amber)':'var(--mint)';
-    const prog=orderProgress[o.status]||0;
-    const canAdvance=o.status!=='received';
-    const seq={draft:'ordered',ordered:'production',production:'shipped',shipped:'received'};
-    const nextLabel=orderStatusMap[seq[o.status]]?.label||'';
+  // 最大100件まで保持
+  if (S.importLog.length > 100) S.importLog = S.importLog.slice(0, 100);
+  localStorage.setItem('hub_import_log', JSON.stringify(S.importLog));
+}
+
+function renderImportLog() {
+  const tbody = document.getElementById('importLogTable');
+  const empty = document.getElementById('importLogEmpty');
+  const logs  = S.importLog || [];
+  if (logs.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const tdB = 'padding:8px 10px;border-bottom:1px solid var(--rule)';
+  tbody.innerHTML = logs.map(l => {
+    const color = l.type === '発注' ? 'var(--blue)' : 'var(--mint)';
+    const icon  = l.type === '発注' ? '📋' : '📦';
     return `<tr>
-      <td><div class="fw7">${o.name}</div><div class="mono" style="font-size:11px;color:var(--muted)">${o.sku||'—'} ${o.variant?'/ '+o.variant:''}</div></td>
-      <td><div class="fw7">${o.factory}</div><div style="font-size:11px;color:var(--muted)">${o.contact||''}</div></td>
-      <td class="text-right mono fw7">${o.qty.toLocaleString()}</td>
-      <td>${o.orderDate}</td>
-      <td class="fw7">${o.deadline}</td>
-      <td class="text-right mono fw7" style="color:${daysColor}">${days<0?'遅延'+Math.abs(days)+'日':days+'日'}</td>
-      <td>${orderBadge(o.status)}</td>
-      <td style="min-width:120px">
-        <div class="progress-wrap"><div class="progress-fill ${prog>=100?'fill-mint':days<0?'fill-coral':'fill-amber'}" style="width:${prog}%"></div></div>
-        <div style="font-size:10px;color:var(--muted);margin-top:3px">${prog}%</div>
-      </td>
-      <td class="text-center">
-        <div style="display:flex;gap:5px;justify-content:center;">
-          ${canAdvance?`<button class="btn btn-ghost btn-sm" onclick="advanceOrder(${o.id})">▶ ${nextLabel}</button>`:''}
-          <button class="btn-icon" onclick="openOrderModal(${o.id})">✏️</button>
-          <button class="btn-icon" onclick="deleteOrder(${o.id})">🗑️</button>
-        </div>
-      </td>
+      <td style="${tdB};font-family:'DM Mono',monospace;font-size:11px">${l.date}</td>
+      <td style="${tdB}"><span style="background:${color};color:white;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">${icon} ${l.type}</span></td>
+      <td style="${tdB};font-weight:600">${l.fileName}</td>
+      <td style="${tdB};text-align:right;font-family:'DM Mono',monospace;font-weight:700">${l.count.toLocaleString()}件</td>
     </tr>`;
   }).join('');
+}
+
+function clearImportLog() {
+  if (!confirm('取り込み履歴をすべて削除しますか？')) return;
+  S.importLog = [];
+  localStorage.setItem('hub_import_log', '[]');
+  renderImportLog();
+  toast('🗑 履歴を削除しました');
+}
+
+// ════════════════════════════════
+// 注文残計算・表示
+// ════════════════════════════════
+let remainingSort = { key: 'sku', dir: 1 };
+
+function calcRemaining() {
+  // GASから返ってきたorderRemainingを優先、なければローカル計算
+  if (S.orderRemaining && S.orderRemaining.length > 0) {
+    return S.orderRemaining.filter(r => r.remaining > 0);
+  }
+  // フォールバック：ローカル計算
+  const orderMap = {};
+  (S.orders || []).forEach(o => {
+    const k = `${o.sku}||${o.color||''}||${o.size||''}`;
+    if (!orderMap[k]) orderMap[k] = { sku: o.sku, name: o.name, color: o.color||'', size: o.size||'', factory: o.factory||'', totalOrder: 0, deadline: o.deadline||'' };
+    orderMap[k].totalOrder += (Number(o.qty) || 0);
+    if (o.deadline && o.deadline > orderMap[k].deadline) orderMap[k].deadline = o.deadline;
+  });
+  const arrivalMap = {};
+  (S.arrivals || []).forEach(a => {
+    const k = `${a.sku}||${a.color||''}||${a.size||''}`;
+    arrivalMap[k] = (arrivalMap[k] || 0) + (Number(a.qty) || 0);
+  });
+  return Object.entries(orderMap).map(([k, v]) => ({
+    ...v,
+    totalArrival: arrivalMap[k] || 0,
+    remaining: Math.max(0, v.totalOrder - (arrivalMap[k] || 0)),
+  })).filter(r => r.remaining > 0);
+}
+
+function renderRemaining() {
+  const search = (document.getElementById('remainingSearch')?.value || '').toLowerCase();
+  let rows = calcRemaining().filter(r =>
+    !search || ((r.sku||r.itemNo||'')+r.name+r.color+r.size).toLowerCase().includes(search)
+  );
+  rows.sort((a, b) => {
+    const av = a[remainingSort.key] ?? '';
+    const bv = b[remainingSort.key] ?? '';
+    if (typeof av === 'number') return (av - bv) * remainingSort.dir;
+    return String(av).localeCompare(String(bv), 'ja') * remainingSort.dir;
+  });
+  const thead = document.getElementById('remainingThead');
+  const tbody = document.getElementById('remainingTable');
+  const empty = document.getElementById('remainingEmpty');
+  const th = (key, label, right) => {
+    const active = remainingSort.key === key;
+    const icon = active ? (remainingSort.dir === 1 ? ' ▲' : ' ▼') : '';
+    return `<th onclick="setRemainingSort('${key}')" style="cursor:pointer;${right?'text-align:right':''}${active?';color:var(--blue)':''}">${label}${icon}</th>`;
+  };
+  thead.innerHTML = th('sku','品番')+th('name','商品名')+th('color','カラー')+th('size','サイズ')+th('totalOrder','発注合計',true)+th('totalArrival','入荷合計',true)+th('remaining','注文残',true)+th('deadline','納期');
+  if (rows.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const tdB = 'padding:8px 10px;border-bottom:1px solid var(--rule)';
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td style="${tdB};font-family:'DM Mono',monospace;font-size:11px;font-weight:600">${r.sku||r.itemNo||'—'}</td>
+    <td style="${tdB};font-weight:600">${r.name||'—'}</td>
+    <td style="${tdB}">${r.color||'—'}</td>
+    <td style="${tdB}">${r.size||'—'}</td>
+    <td style="${tdB};text-align:right;font-family:'DM Mono',monospace">${r.totalOrder.toLocaleString()}</td>
+    <td style="${tdB};text-align:right;font-family:'DM Mono',monospace;color:var(--mint)">${r.totalArrival > 0 ? r.totalArrival.toLocaleString() : '—'}</td>
+    <td style="${tdB};text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--amber)">${r.remaining.toLocaleString()}</td>
+    <td style="${tdB};font-family:'DM Mono',monospace;font-size:11px">${r.deadline||'—'}</td>
+  </tr>`).join('');
   updateOrderKpi();
 }
-function renderTimeline(){
-  const active=S.orders.filter(o=>o.status!=='received'&&o.deadline);
-  const area=document.getElementById('timelineArea');
-  if(active.length===0){area.innerHTML='<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">発注データなし</div></div>';return;}
-  const today=new Date();
-  const end=new Date(today);end.setDate(end.getDate()+90);
-  const totalDays=90;
-  area.innerHTML=`<div style="min-width:600px">
-    <div style="display:flex;font-size:10px;color:var(--muted);margin-bottom:8px;padding-left:200px">
-      ${[0,30,60,90].map(d=>`<div style="flex:none;width:${d===90?'0':'33.3%'};text-align:${d===0?'left':'center'}">${new Date(today.getTime()+d*86400000).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})}</div>`).join('')}
-    </div>
-    ${active.map(o=>{
-      const dl=new Date(o.deadline);
-      const od=new Date(o.orderDate);
-      const startPct=Math.max(0,Math.min(100,(od-today)/(totalDays*86400000)*100));
-      const endPct=Math.max(0,Math.min(100,(dl-today)/(totalDays*86400000)*100));
-      const width=Math.max(1,endPct-startPct);
-      const color=dl<today?'var(--coral)':daysUntil(o.deadline)<=30?'var(--amber)':'var(--blue)';
-      return `<div style="display:flex;align-items:center;margin-bottom:8px;gap:8px">
-        <div style="width:200px;flex-shrink:0;font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.name}">${o.name}</div>
-        <div style="flex:1;background:var(--rule);border-radius:4px;height:24px;position:relative">
-          <div style="position:absolute;left:${startPct}%;width:${width}%;background:${color};height:100%;border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:10px;color:white;font-weight:700;overflow:hidden;white-space:nowrap">${o.qty.toLocaleString()}点</div>
-        </div>
-        <div style="width:60px;flex-shrink:0;font-size:10px;color:var(--muted)">${orderBadge(o.status)}</div>
-      </div>`;
-    }).join('')}
-  </div>`;
+
+function setRemainingSort(key) {
+  if (remainingSort.key === key) remainingSort.dir *= -1;
+  else { remainingSort.key = key; remainingSort.dir = 1; }
+  renderRemaining();
 }
+
+function updateOrderKpi() {
+  const rows = calcRemaining();
+  const el1 = document.getElementById('orderKpiActive');
+  const el2 = document.getElementById('orderKpiRemaining');
+  const el3 = document.getElementById('orderKpiArrived');
+  if(el1) el1.textContent = rows.length;
+  if(el2) el2.textContent = rows.reduce((s, r) => s + r.remaining, 0).toLocaleString();
+  if(el3) el3.textContent = (S.arrivals || []).reduce((s, a) => s + (Number(a.qty)||0), 0).toLocaleString();
+}
+
+// ════════════════════════════════
+// 発注履歴テーブル
+// ════════════════════════════════
+let orderSort = { key: 'sku', dir: 1 };
+
+function setOrderSort(key) {
+  if (orderSort.key === key) orderSort.dir *= -1;
+  else { orderSort.key = key; orderSort.dir = 1; }
+  // アイコン更新
+  ['sku','name','color','size','factory','qty','orderDate','deadline'].forEach(k => {
+    const el = document.getElementById('orderSort' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (el) el.textContent = orderSort.key === k ? (orderSort.dir === 1 ? '▲' : '▼') : '';
+  });
+  renderOrders();
+}
+
+function renderOrders() {
+  const search = (document.getElementById('orderSearch')?.value || '').toLowerCase();
+  let rows = (S.orders || []).filter(o =>
+    !search || (o.name+o.sku+o.factory+o.color+o.size).toLowerCase().includes(search)
+  );
+  rows.sort((a, b) => String(a[orderSort.key]||'').localeCompare(String(b[orderSort.key]||''), 'ja') * orderSort.dir);
+  const tbody = document.getElementById('orderTable');
+  const empty = document.getElementById('orderEmpty');
+  if (rows.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const tdB = 'padding:8px 10px;border-bottom:1px solid var(--rule)';
+  tbody.innerHTML = rows.map(o => `<tr>
+    <td style="${tdB};font-family:'DM Mono',monospace;font-size:11px;font-weight:600">${o.sku||'—'}</td>
+    <td style="${tdB};font-weight:600">${o.name||'—'}</td>
+    <td style="${tdB}">${o.color||'—'}</td>
+    <td style="${tdB}">${o.size||'—'}</td>
+    <td style="${tdB}">${o.factory||'—'}</td>
+    <td style="${tdB};text-align:right;font-family:'DM Mono',monospace;font-weight:700">${(o.qty||0).toLocaleString()}</td>
+    <td style="${tdB};font-family:'DM Mono',monospace;font-size:11px">${o.orderDate||'—'}</td>
+    <td style="${tdB};font-family:'DM Mono',monospace;font-size:11px">${o.deadline||'—'}</td>
+    <td style="${tdB};text-align:center">
+      <div style="display:flex;gap:5px;justify-content:center;">
+        <button class="btn-icon" onclick="openOrderModal(${o.id})">✏️</button>
+        <button class="btn-icon" onclick="deleteOrder(${o.id})">🗑️</button>
+      </div>
+    </td>
+  </tr>`).join('');
+}
+
+function openOrderModal(id) {
+  S.editOrderId = id || null;
+  const o = id ? S.orders.find(x => x.id === id) : null;
+  document.getElementById('orderModalTitle').textContent = o ? '発注を編集' : '発注を追加';
+  document.getElementById('oSku').value       = o?.sku       || '';
+  document.getElementById('oName').value      = o?.name      || '';
+  document.getElementById('oFactory').value   = o?.factory   || '';
+  document.getElementById('oColor').value     = o?.color     || '';
+  document.getElementById('oSize').value      = o?.size      || '';
+  document.getElementById('oQty').value       = o?.qty       || '';
+  document.getElementById('oOrderDate').value = o?.orderDate || new Date().toISOString().slice(0,10);
+  document.getElementById('oDeadline').value  = o?.deadline  || '';
+  document.getElementById('oNote').value      = o?.note      || '';
+  openModal('orderModal');
+}
+
+function saveOrder() {
+  const name      = document.getElementById('oName').value.trim();
+  const factory   = document.getElementById('oFactory').value.trim();
+  const qty       = parseInt(document.getElementById('oQty').value);
+  const orderDate = document.getElementById('oOrderDate').value;
+  const deadline  = document.getElementById('oDeadline').value;
+  if (!name || !factory || isNaN(qty) || !orderDate || !deadline) {
+    toast('必須項目を入力してください', 'error'); return;
+  }
+  const color = document.getElementById('oColor').value.trim();
+  const size  = document.getElementById('oSize').value.trim();
+  const obj = {
+    id: S.editOrderId || nextOid++,
+    sku: document.getElementById('oSku').value.trim(),
+    name, factory, color, size, qty, orderDate, deadline,
+    variant: [color, size].filter(Boolean).join('/'),
+    note: document.getElementById('oNote').value.trim(),
+  };
+  if (S.editOrderId) { const i = S.orders.findIndex(x => x.id === S.editOrderId); S.orders[i] = obj; }
+  else S.orders.unshift(obj);
+  save(); closeModal('orderModal'); renderOrders(); renderRemaining();
+  toast(S.editOrderId ? '✏️ 更新しました' : '✅ 発注を追加しました', 'success');
+  if (GAS_ENABLED && GAS_URL) pushOrdersToCloud_([obj]);
+}
+
+function deleteOrder(id) {
+  if (!confirm('この発注を削除しますか？')) return;
+  S.orders = S.orders.filter(x => x.id !== id);
+  save(); renderOrders(); renderRemaining(); updateOrderKpi();
+  toast('🗑️ 削除しました');
+  if (GAS_ENABLED && GAS_URL) syncAllOrdersToCloud_();
+}
+
+// ════════════════════════════════
+// 入荷CSV処理
+// ════════════════════════════════
+let _pendingArrivalRows = [];
+
+function openArrivalModal() {
+  _pendingArrivalRows = [];
+  document.getElementById('arrivalCsvPreview').style.display = 'none';
+  document.getElementById('arrivalImportBtn').style.display = 'none';
+  document.getElementById('arrivalCsvZoneLabel').textContent = '入荷CSVをドロップ または クリック';
+  document.getElementById('arrivalCsvInput').value = '';
+  openModal('arrivalModal');
+}
+
+function handleArrivalCsvUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result.replace(/^\uFEFF/, '');
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) { toast('CSVを正しく読み取れませんでした', 'error'); return; }
+    const splitLine = l => {
+      const r = []; let cur = '', inQ = false;
+      for (const c of l) { if(c==='"'){inQ=!inQ;}else if(c===','&&!inQ){r.push(cur.trim());cur='';}else cur+=c; }
+      r.push(cur.trim());
+      return r.map(v => v.replace(/^"|"$/g,'').trim());
+    };
+    _pendingArrivalRows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = splitLine(lines[i]);
+      if (cols.length < 5) continue;
+      const sku = cols[0]||'', name = cols[1]||'', color = cols[2]||'', size = cols[3]||'';
+      const qty = parseInt(cols[4]) || 0;
+      if (!sku || qty === 0) continue;
+      _pendingArrivalRows.push({ sku, name, color, size, qty });
+    }
+    if (_pendingArrivalRows.length === 0) { toast('有効なデータがありませんでした', 'error'); return; }
+    const remainingMap = {};
+    calcRemaining().forEach(r => { remainingMap[`${r.sku||r.itemNo}||${r.color}||${r.size}`] = r.remaining; });
+    const tbody = document.getElementById('arrivalCsvPreviewBody');
+    const tdB = 'padding:6px 10px;border-bottom:1px solid var(--rule)';
+    tbody.innerHTML = _pendingArrivalRows.map(r => {
+      const k = `${r.sku}||${r.color}||${r.size}`;
+      const cur = remainingMap[k] ?? '—';
+      const after = typeof cur === 'number' ? Math.max(0, cur - r.qty) : '—';
+      const afterColor = after === 0 ? 'var(--mint)' : after === '—' ? 'var(--muted)' : 'var(--amber)';
+      return `<tr>
+        <td style="${tdB};font-family:'DM Mono',monospace;font-size:11px;font-weight:600">${r.sku}</td>
+        <td style="${tdB};font-weight:600">${r.name}</td>
+        <td style="${tdB}">${r.color}</td>
+        <td style="${tdB}">${r.size}</td>
+        <td style="${tdB};text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--blue)">${r.qty.toLocaleString()}</td>
+        <td style="${tdB};text-align:right;font-family:'DM Mono',monospace">${typeof cur==='number'?cur.toLocaleString():'—'}</td>
+        <td style="${tdB};text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:${afterColor}">${typeof after==='number'?after.toLocaleString():'—'}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('arrivalCsvPreview').style.display = '';
+    document.getElementById('arrivalCsvPreviewTitle').textContent = `プレビュー: ${_pendingArrivalRows.length}件`;
+    document.getElementById('arrivalImportBtn').style.display = '';
+    document.getElementById('arrivalCsvZoneLabel').textContent = `✅ ${file.name}（${_pendingArrivalRows.length}件）`;
+  };
+  reader.readAsText(file, 'UTF-8');
+  event.target.value = '';
+}
+
+function cancelArrivalCsv() {
+  _pendingArrivalRows = [];
+  document.getElementById('arrivalCsvPreview').style.display = 'none';
+  document.getElementById('arrivalImportBtn').style.display = 'none';
+  document.getElementById('arrivalCsvZoneLabel').textContent = '入荷CSVをドロップ または クリック';
+}
+
+function applyArrivalCsv() {
+  if (!_pendingArrivalRows.length) return;
+  if (!S.arrivals) S.arrivals = [];
+  const today = new Date().toISOString().slice(0,10);
+  _pendingArrivalRows.forEach(r => S.arrivals.push({ ...r, arrivedAt: today }));
+  localStorage.setItem('hub_arrivals', JSON.stringify(S.arrivals));
+  // 取り込み履歴に記録
+  const fname = document.getElementById('arrivalCsvZoneLabel').textContent.replace(/^✅\s*/,'').replace(/（\d+件）$/,'').trim() || '入荷CSV';
+  addImportLog('入荷', fname, _pendingArrivalRows.length);
+  closeModal('arrivalModal');
+  renderRemaining();
+  toast(`✅ ${_pendingArrivalRows.length}件の入荷を反映しました`, 'success');
+  if (GAS_ENABLED && GAS_URL) syncArrivalsToCloud_();
+}
+
+async function syncArrivalsToCloud_() {
+  try {
+    const gasRows = (S.arrivals||[]).map(r => ({
+      '品番': r.sku||'', '商品名': r.name||'', 'カラー': r.color||'',
+      'サイズ': r.size||'', '入荷数': r.qty||0, '入荷日': r.arrivedAt||'',
+    }));
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'saveArrivals', rows: gasRows })
+    });
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error);
+    toast('☁️ 入荷データをクラウドに保存しました', 'success');
+  } catch(e) {
+    toast('⚠️ クラウド保存失敗（ローカルには保存済み）: ' + e.message, 'error');
+  }
+}
+
+async function syncAllOrdersToCloud_() {
+  try {
+    const gasRows = S.orders.map(r => ({
+      '発注日': r.orderDate||'', '工場名': r.factory||'', '品番': r.sku||'',
+      '商品名': r.name||'', 'カラー': r.color||'', 'サイズ': r.size||'',
+      '発注数': r.qty||0, '希望納期': r.deadline||'',
+    }));
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'savePurchaseOrders', rows: gasRows })
+    });
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error);
+    toast('☁️ クラウドに保存しました', 'success');
+  } catch(e) {
+    toast('⚠️ クラウド保存失敗: ' + e.message, 'error');
+  }
+}
+
+async function forceSyncOrdersNow() {
+  if (!GAS_ENABLED || !GAS_URL) { toast('先にGAS URLを設定してください', 'warn'); return; }
+  if (!S.orders || S.orders.length === 0) { toast('発注データがありません', 'warn'); return; }
+  toast(`☁️ ${S.orders.length}件を送信中...`, 'success');
+  await syncAllOrdersToCloud_();
+}
+
+async function pushOrdersToCloud_(rows) {
+  // 新規追加分だけGASに送る（追記）
+  try {
+    const gasRows = rows.map(r => ({
+      '発注日': r.orderDate||'', '工場名': r.factory||'', '品番': r.sku||'',
+      '商品名': r.name||'', 'カラー': r.color||'', 'サイズ': r.size||'',
+      '発注数': r.qty||0, '希望納期': r.deadline||'',
+    }));
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'savePurchaseOrders', rows: gasRows })
+    });
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error);
+    toast('☁️ クラウドに保存しました', 'success');
+  } catch(e) {
+    toast('⚠️ クラウド保存失敗: ' + e.message, 'error');
+  }
+}
+
+function renderTimeline() { /* タイムライン削除済み */ }
+
+// ════════════════════════════════
+// 発注CSV一括追加
+// ════════════════════════════════
+let _pendingOrderRows = [];
+
+function openOrderCsvModal() {
+  _pendingOrderRows = [];
+  document.getElementById('orderCsvPreview').style.display = 'none';
+  document.getElementById('orderCsvImportBtn').style.display = 'none';
+  document.getElementById('orderCsvZoneLabel').textContent = '発注CSVをドロップ または クリック';
+  document.getElementById('orderCsvInput').value = '';
+  openModal('orderCsvModal');
+}
+
+function handleOrderCsvUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = parseOrderCsvText_(e.target.result);
+    if (!rows || rows.length === 0) { toast('CSVを正しく読み取れませんでした', 'error'); return; }
+    _pendingOrderRows = rows;
+    const tbody = document.getElementById('orderCsvPreviewBody');
+    tbody.innerHTML = rows.slice(0, 100).map(r => `<tr>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px">${r.orderDate||'—'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--rule);font-weight:600">${r.factory||'—'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px">${r.sku||'—'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--rule);font-weight:600">${r.name||'—'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--rule)">${r.color||'—'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--rule)">${r.size||'—'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--blue)">${r.qty.toLocaleString()}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px">${r.deadline||'—'}</td>
+    </tr>`).join('') + (rows.length > 100 ? `<tr><td colspan="8" style="padding:8px;text-align:center;color:var(--muted);font-size:11px">…他 ${rows.length-100} 行</td></tr>` : '');
+    document.getElementById('orderCsvPreview').style.display = '';
+    document.getElementById('orderCsvPreviewTitle').textContent = `プレビュー: ${rows.length} 行`;
+    document.getElementById('orderCsvImportBtn').style.display = '';
+    document.getElementById('orderCsvZoneLabel').textContent = `✅ ${file.name}（${rows.length}行）`;
+  };
+  reader.readAsText(file, 'UTF-8');
+  event.target.value = '';
+}
+
+function parseOrderCsvText_(text) {
+  text = text.replace(/^\uFEFF/, '');
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return [];
+  const splitLine = line => {
+    const r = []; let cur = '', inQ = false;
+    for (const c of line) { if(c==='"'){inQ=!inQ;}else if(c===','&&!inQ){r.push(cur.trim());cur='';}else cur+=c; }
+    r.push(cur.trim());
+    return r.map(v => v.replace(/^"|"$/g,'').replace(/""/g,'"').trim());
+  };
+  const result = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = splitLine(lines[i]);
+    if (cols.length < 5) continue;
+    const orderDate = cols[0]||'', factory = cols[1]||'', sku = cols[2]||'';
+    const name = cols[3]||'', color = cols[4]||'', size = cols[5]||'';
+    const qty = parseInt(cols[6],10)||0, deadline = cols[7]||'';
+    if (!name && !sku) continue;
+    result.push({ orderDate, factory, sku, name, color, size, qty, deadline,
+      variant: [color,size].filter(Boolean).join('/'), status: 'ordered' });
+  }
+  return result;
+}
+
+function cancelOrderCsvUpload() {
+  _pendingOrderRows = [];
+  document.getElementById('orderCsvPreview').style.display = 'none';
+  document.getElementById('orderCsvImportBtn').style.display = 'none';
+  document.getElementById('orderCsvZoneLabel').textContent = '発注CSVをドロップ または クリック';
+}
+
+function importOrderCsv() {
+  if (!_pendingOrderRows || _pendingOrderRows.length === 0) { toast('追加するデータがありません', 'warn'); return; }
+  const newRows = _pendingOrderRows.map(r => ({ ...r, id: nextOid++ }));
+  S.orders = [...newRows, ...S.orders];
+  save(); closeModal('orderCsvModal'); renderOrders(); renderRemaining(); updateOrderKpi();
+  // 取り込み履歴に記録
+  const fname = document.getElementById('orderCsvZoneLabel').textContent.replace(/^✅\s*/,'').replace(/（\d+行）$/,'').trim() || '発注CSV';
+  addImportLog('発注', fname, newRows.length);
+  toast(`✅ ${newRows.length}件の発注を追加しました`, 'success');
+  if (GAS_ENABLED && GAS_URL) pushOrdersToCloud_(newRows);
+}
+
+function exportRemainingCsv() {
+  const rows = calcRemaining();
+  if (rows.length === 0) { toast('注文残データがありません', 'warn'); return; }
+  const escape = v => { const s = String(v??''); return s.includes(',')||s.includes('"') ? `"${s.replace(/"/g,'""')}"` : s; };
+  const headers = ['品番','商品名','カラー','サイズ','発注合計','入荷合計','注文残','納期'];
+  const lines = rows.map(r => [(r.sku||r.itemNo||''),r.name||'',r.color||'',r.size||'',r.totalOrder||0,r.totalArrival||0,r.remaining||0,r.deadline||''].map(escape).join(','));
+  const csv = '\uFEFF' + headers.join(',') + '\n' + lines.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const now = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `注文残一覧_${now}.csv`; a.click();
+  toast(`📥 ${rows.length}件をCSV出力しました`, 'success');
+}
+
+function exportOrdersCsv() {
+  if (!S.orders || S.orders.length === 0) { toast('発注データがありません', 'warn'); return; }
+  const escape = v => { const s = String(v??''); return s.includes(',')||s.includes('"') ? `"${s.replace(/"/g,'""')}"` : s; };
+  const headers = ['発注日','工場名','品番','商品名','カラー','サイズ','発注数','希望納期'];
+  const rows = S.orders.map(o => [o.orderDate||'',o.factory||'',o.sku||'',o.name||'',o.color||'',o.size||'',o.qty||0,o.deadline||''].map(escape).join(','));
+  const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const now = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `発注一覧_${now}.csv`; a.click();
+  toast(`📥 ${S.orders.length}件をCSV出力しました`, 'success');
+}
+
 
 // ════════════════════════════════
 // CHANNEL DEFINITIONS (全10拠点)
@@ -2203,9 +2740,16 @@ function exportProductsCsv() {
     if (key) shipmentMapCsv[key] = (shipmentMapCsv[key] || 0) + (s.qty || 0);
   });
 
+  // 注文残マップ
+  const remainingMapCsv = {};
+  (S.orderRemaining || []).forEach(r => {
+    const key = r.itemNo || r.sku || '';
+    if (key) remainingMapCsv[key] = (remainingMapCsv[key] || 0) + (r.remaining || 0);
+  });
+
   // ヘッダー行：表示中チャネルのみ
   const chHeaders = activeChs.map(ch => ch.label);
-  const headers = ['品番', 'JANコード', '商品名', 'カラー', 'サイズ', '価格', ...chHeaders, '合計', '工場出荷中'];
+  const headers = ['品番', 'JANコード', '商品名', 'カラー', 'サイズ', '価格', ...chHeaders, '合計', '工場出荷中', '注文残'];
 
   const escape = v => {
     const s = String(v ?? '');
@@ -2213,9 +2757,10 @@ function exportProductsCsv() {
   };
 
   const csvRows = rows.map(p => {
-    const chVals  = activeChs.map(ch => p[ch.key] || 0);
-    const total   = chVals.reduce((s, v) => s + v, 0);
-    const shipQty = shipmentMapCsv[p.itemNo || ''] || 0;
+    const chVals      = activeChs.map(ch => p[ch.key] || 0);
+    const total       = chVals.reduce((s, v) => s + v, 0);
+    const shipQty     = shipmentMapCsv[p.itemNo || ''] || 0;
+    const remainingQty = remainingMapCsv[p.itemNo || ''] || 0;
     return [
       p.itemNo || '',
       p.jan    || '',
@@ -2226,6 +2771,7 @@ function exportProductsCsv() {
       ...chVals,
       total,
       shipQty,
+      remainingQty,
     ].map(escape).join(',');
   });
 
@@ -2399,6 +2945,15 @@ function renderProducts() {
     shipmentMap[key] = (shipmentMap[key] || 0) + (s.qty || 0);
   });
 
+  // 注文残マップ（品番 → 残数合計）
+  const remainingByItemNo = {};
+  const remainingSrc = (S.orderRemaining && S.orderRemaining.length > 0) ? S.orderRemaining : [];
+  remainingSrc.forEach(r => {
+    const key = r.itemNo || r.sku || '';
+    if (!key) return;
+    remainingByItemNo[key] = (remainingByItemNo[key] || 0) + (r.remaining || 0);
+  });
+
   thead.innerHTML = `
     <th style="${thSort}text-align:left" onclick="setSortKey('itemNo')" ${thSortHover}>品番${sortIcon('itemNo')}</th>
     <th class="col-jan${janVisible?'':' jan-hidden'}" style="${thBase}text-align:left">JANコード</th>
@@ -2445,6 +3000,7 @@ function renderProducts() {
         <div onclick="setShipFilter('nonzero')" id="sf_nonzero" style="padding:7px 14px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">　1以上のみ</div>
       </div>
     </th>
+    <th style="${thBase}text-align:right;background:#f0f4ff;white-space:nowrap">📋 注文残</th>
   `;
 
   // Build rows
@@ -2460,6 +3016,8 @@ function renderProducts() {
     const priceStr = (!isNaN(priceNum) && priceNum > 0) ? '¥' + priceNum.toLocaleString() : '—';
     const shipKey = p.itemNo || '';
     const shipQty = shipmentMap[shipKey] || 0;
+    // 注文残マップ（品番で集計）
+    const remainingQty = remainingByItemNo[shipKey] || 0;
     return `<tr>
       <td style="padding:10px 12px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap">${p.itemNo||'—'}</td>
       <td class="col-jan${janVisible?'':' jan-hidden'}" style="padding:10px 12px;border-bottom:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap">${p.jan||'—'}</td>
@@ -2470,6 +3028,7 @@ function renderProducts() {
       ${chCells}
       <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:700;font-size:14px" class="${totalCls}">${total}</td>
       <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:700;background:#fff8e6;color:${shipQty>0?'var(--amber)':'var(--muted)'}">${shipQty > 0 ? shipQty.toLocaleString() : '—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid var(--rule);text-align:right;font-family:'DM Mono',monospace;font-weight:700;background:#f0f4ff;color:${remainingQty>0?'var(--blue)':'var(--muted)'}">${remainingQty > 0 ? remainingQty.toLocaleString() : '—'}</td>
     </tr>`;
   }).join('');
 
@@ -3666,9 +4225,12 @@ async function loadFromCloud(force) {
     const allProducts  = (d.products || []).map(parseProduct_);
     const metaData     = d.meta     || [];
     const transitData  = d.transit  || [];
-    const ordersData   = d.orders   || [];
+    const ordersData   = d.purchaseOrders || d.orders || [];
     if (d.reserves)  S.reserves  = d.reserves;
     if (d.shipments) S.shipments = d.shipments;
+    if (d.arrivals)       { S.arrivals       = d.arrivals;       localStorage.setItem('hub_arrivals',        JSON.stringify(S.arrivals)); }
+    if (d.importLog)      { S.importLog      = d.importLog;      localStorage.setItem('hub_import_log',      JSON.stringify(S.importLog)); }
+    if (d.orderRemaining) { S.orderRemaining = d.orderRemaining; localStorage.setItem('hub_order_remaining', JSON.stringify(S.orderRemaining)); }
 
     console.log('[Cloud] 取得件数:', allProducts.length, '/ total:', d.total);
     if (allProducts.length > 0) {
@@ -3685,7 +4247,24 @@ async function loadFromCloud(force) {
       console.warn('[Cloud] 商品データが0件。GASのスプレッドシートとaction=getDataのレスポンスを確認してください。');
     }
     if (transitData.length > 0) { S.transit = transitData; localStorage.setItem('hub_transit', JSON.stringify(S.transit)); }
-    if (ordersData.length  > 0) { S.orders  = ordersData;  localStorage.setItem('hub_orders',  JSON.stringify(S.orders)); }
+    // 発注データは0件でも必ず上書き（スプレッドシートで削除した内容を反映するため）
+    S.orders = ordersData.map((r, i) => ({
+      id:        r.id        || (Date.now() + i),
+      sku:       r['品番']   || r.sku       || '',
+      name:      r['商品名'] || r.name      || '',
+      factory:   r['工場名'] || r.factory   || '',
+      color:     r['カラー'] || r.color     || '',
+      size:      r['サイズ'] || r.size      || '',
+      variant:   r.variant   || [r['カラー']||r.color||'', r['サイズ']||r.size||''].filter(Boolean).join('/'),
+      qty:       Number(r['発注数'] || r.qty) || 0,
+      orderDate: r['発注日'] || r.orderDate || '',
+      deadline:  r['希望納期']|| r.deadline  || '',
+      status:    r['ステータス']|| r.status  || 'ordered',
+      contact:   r.contact   || '',
+      price:     Number(r.price) || 0,
+      note:      r.note      || '',
+    }));
+    localStorage.setItem('hub_orders', JSON.stringify(S.orders));
 
     updateSyncStatus('connected');
     if(typeof refreshOverview === 'function') refreshOverview();
@@ -3694,6 +4273,7 @@ async function loadFromCloud(force) {
     if(typeof renderShipments === 'function') renderShipments();
     if(typeof renderTransit   === 'function') renderTransit();
     if(typeof renderOrders    === 'function') renderOrders();
+    if(typeof renderRemaining === 'function') renderRemaining();
     if(typeof renderTimeline  === 'function') renderTimeline();
 
     const now = new Date().toLocaleTimeString('ja-JP');
@@ -3827,6 +4407,8 @@ window.addEventListener('load', function() {
   updateOrderKpi();
   setupDropZone('smDropZone', 'smCsvFileInput', handleSmaregiCsv);
   setupDropZone('extDropZone', 'extCsvFileInput', handleExtCsv);
+  setupDropZone('orderCsvZone', 'orderCsvInput', handleOrderCsvUpload);
+  setupDropZone('arrivalCsvZone', 'arrivalCsvInput', handleArrivalCsvUpload);
   if (GAS_ENABLED) {
     updateSyncStatus('connected');
   }
@@ -3883,114 +4465,83 @@ function parseCsvToObjects(buffer) {
 // ── ファイル読み込み ──
 function handleSiStockCsv(e) {
   const file = e.target.files[0]; if (!file) return;
-  readFileAutoEncoding(file, text => {
-    const { headers, rows } = parseCSV(text);
-    siStockData = rows.map(row => {
-      const obj = {};
-      headers.forEach((h, i) => { obj[h.trim()] = (row[i] || '').trim(); });
-      return obj;
-    });
+  const reader = new FileReader();
+  reader.onload = ev => {
+    siStockData = parseCsvToObjects(ev.target.result);
     document.getElementById('siStockLabel').textContent = `✅ ${file.name}（${siStockData.length}行）`;
     document.getElementById('siStockZone').style.borderColor = 'var(--mint)';
     document.getElementById('siStockZone').style.background = 'var(--mint-dim)';
     toast(`📊 在庫分析データを読み込みました（${siStockData.length}行）`, 'success');
     tryBuildSiTable();
-  });
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function handleSiSalesCsv(e) {
   const file = e.target.files[0]; if (!file) return;
-  readFileAutoEncoding(file, text => {
-    const { headers, rows } = parseCSV(text);
-    siSalesData = rows.map(row => {
-      const obj = {};
-      headers.forEach((h, i) => { obj[h.trim()] = (row[i] || '').trim(); });
-      return obj;
-    });
+  const reader = new FileReader();
+  reader.onload = ev => {
+    siSalesData = parseCsvToObjects(ev.target.result);
     document.getElementById('siSalesLabel').textContent = `✅ ${file.name}（${siSalesData.length}行）`;
     document.getElementById('siSalesZone').style.borderColor = 'var(--mint)';
     document.getElementById('siSalesZone').style.background = 'var(--mint-dim)';
     toast(`🛒 売上数量データを読み込みました（${siSalesData.length}行）`, 'success');
     tryBuildSiTable();
-  });
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 // ── 両CSVが揃ったら突合・テーブル構築 ──
 function tryBuildSiTable() {
-  // 在庫分析データは必須。売上数量データはなくても動く
-  if (!siStockData) return;
-
-  // 列名の前後スペースを除去するヘルパー
-  const trimRow = row => {
-    const t = {};
-    Object.keys(row).forEach(k => { t[k.trim()] = (row[k]||'').toString().trim(); });
-    return t;
-  };
-
-  // CS品番を正規化（8922760.0 → "8922760"）
-  const normSku = v => v ? String(v).replace(/\.0+$/, '').trim() : '';
+  if (!siStockData || !siSalesData) return;
 
   // 在庫分析: CS品番+カラー+サイズ → 行マップ
   const stockMap = {};
   siStockData.forEach(row => {
-    const s = trimRow(row);
-    const csSku = normSku(s['CS品番']);
-    if (!csSku) return; // 空行スキップ
-    const key = [csSku, s['カラー']||'', s['サイズ']||''].join('|');
-    s['CS品番'] = csSku; // 正規化した値で上書き
-    stockMap[key] = s;
+    // 列名の前後スペースを除去してアクセス
+    const trimmed = {};
+    Object.keys(row).forEach(k => { trimmed[k.trim()] = row[k]; });
+    const key = [trimmed['CS品番']||'', trimmed['カラー']||'', trimmed['サイズ']||''].join('|');
+    if (!key.startsWith('|')) stockMap[key] = trimmed;
   });
 
-  // 売上数量: CS品番+カラー+サイズ → 注文数合計マップ（任意）
+  // 売上数量: CS品番+カラー+サイズ → 注文数合計マップ
   const salesMap = {};
-  if (siSalesData) {
-    siSalesData.forEach(row => {
-      const s = trimRow(row);
-      const csSku = normSku(s['CS品番']);
-      if (!csSku) return;
-      const key = [csSku, s['カラー']||'', s['サイズ']||''].join('|');
-      salesMap[key] = (salesMap[key] || 0) + (parseInt(s['注文数']) || 0);
-    });
-  }
+  siSalesData.forEach(row => {
+    const trimmed = {};
+    Object.keys(row).forEach(k => { trimmed[k.trim()] = row[k]; });
+    const key = [trimmed['CS品番']||'', trimmed['カラー']||'', trimmed['サイズ']||''].join('|');
+    if (!key.startsWith('|')) {
+      salesMap[key] = (salesMap[key] || 0) + (parseInt(trimmed['注文数']) || 0);
+    }
+  });
 
   // 在庫データを基準に突合
   siRows = [];
   Object.entries(stockMap).forEach(([key, s]) => {
-    const prevDay   = parseInt(s['前日販売数'])    || 0;
-    const orderQty  = salesMap[key]               || 0;
-    const combined  = prevDay + orderQty;
+    const prevDay = parseInt(s['前日販売数']) || 0;
+    const orderQty = salesMap[key] || 0;
+    const combined = prevDay + orderQty;
     const available = parseInt(s['販売可能数合計']) || 0;
-    const sales30   = parseInt(s['直近30日販売数']) || 0;
 
     // 自社在庫（スマレジ取込済みデータから品番でマッチ）
     const ownStock = getSiOwnStock(s['CS品番'] || '');
 
-    // 推奨フォロー数（新ロジック）
-    // ① 自社在庫3以下はフォロー無し
-    // ② 直近30日販売数 - 販売可能数 = 不足数（マイナスは0）
-    // ③ フォロー数は自社在庫合計を上限
-    const ownTotal = ownStock ? ownStock.total : 0;
-    let recommended = 0;
-    if (ownTotal > 3) {
-      const deficit = Math.max(0, sales30 - available);
-      recommended = Math.min(deficit, ownTotal);
-    }
+    // 推奨フォロー数（合算数と販売可能数の差を埋める、ただし自社在庫上限）
+    const deficit = Math.max(0, combined - available);
+    const recommended = ownStock !== null ? Math.min(deficit, ownStock.total) : deficit;
 
     siRows.push({
-      key,
-      csSku:      s['CS品番']    || '',
-      name:       s['商品名']    || '',
-      color:      s['カラー']    || '',
-      size:       s['サイズ']    || '',
-      priceType:  s['価格タイプ'] || '',
-      salesType:  s['販売タイプ'] || '',
+      key, csSku: s['CS品番']||'', name: s['商品名']||s['商品名 ']||'',
+      color: s['カラー']||'', size: s['サイズ']||'',
       prevDay, orderQty, combined, available,
-      sales30, ownStock, recommended,
+      ownStock,
+      recommended,
     });
   });
 
-  // 合算数降順でソート（同数は前日販売数降順）
-  siRows.sort((a,b) => b.combined - a.combined || b.prevDay - a.prevDay);
+  // 合算数降順でソート
+  siRows.sort((a,b) => b.combined - a.combined);
 
   document.getElementById('siKpiRow').style.display = 'grid';
   document.getElementById('siTableCard').style.display = 'block';
@@ -4001,7 +4552,7 @@ function tryBuildSiTable() {
 // スマレジ取込済みデータから自社在庫を取得
 function getSiOwnStock(csSku) {
   if (!csSku) return null;
-  const products = S.products || [];
+  const products = JSON.parse(localStorage.getItem('ppt_products') || '[]');
   const match = products.find(p => String(p.itemNo||'').trim() === String(csSku).trim());
   if (!match) return null;
   const wh = match.warehouse||0, on = match.shopify||0;
@@ -4056,29 +4607,28 @@ function renderSiTable() {
       : `<span style="color:var(--muted)">—</span>`;
 
     return `<tr class="${rowCls}">
-      <td class="mono text-center" style="color:var(--muted);font-size:11px;width:36px">${statusIcon} ${i+1}</td>
-      <td class="mono fw7" style="font-size:12px;width:72px;white-space:nowrap">${r.csSku}</td>
-      <td style="font-size:12px;min-width:180px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.name}">${r.name}</td>
-      <td style="font-size:12px;width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.color}">${r.color}</td>
-      <td style="font-size:12px;width:55px;white-space:nowrap">${r.size}</td>
-      <td style="font-size:11px;color:var(--ink2);width:52px;white-space:nowrap">${r.priceType||'—'}</td>
-      <td style="font-size:11px;color:var(--ink2);width:48px;white-space:nowrap">${r.salesType||'—'}</td>
-      <td class="text-right mono fw7" style="width:70px">${r.combined}
+      <td class="mono text-center" style="color:var(--muted);font-size:11px">${statusIcon} ${i+1}</td>
+      <td class="mono fw7" style="font-size:12px">${r.csSku}</td>
+      <td style="font-size:12px;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.name}">${r.name}</td>
+      <td style="font-size:12px">${r.color}</td>
+      <td style="font-size:12px">${r.size}</td>
+      <td class="text-right mono fw7">${r.combined}
         <div style="font-size:10px;color:var(--muted);font-weight:400">${r.prevDay}+${r.orderQty}</div>
       </td>
-      <td class="text-right mono" style="width:70px">${r.available}</td>
-      <td class="text-right" style="width:70px">${ownTotalHtml}</td>
-      <td class="text-right mono" style="color:var(--ink2);width:70px">${r.sales30 || '—'}</td>
-      <td class="text-right mono" style="color:var(--blue);font-weight:700;width:55px">${r.recommended}</td>
-      <td class="text-center" style="width:72px">
+      <td class="text-right mono">${r.available}</td>
+      <td class="text-right">${ownTotalHtml}</td>
+      <td>${storeHtml}</td>
+      <td class="text-right mono" style="color:var(--blue);font-weight:700">${r.recommended}</td>
+      <td class="text-center">
         <input type="number" class="si-qty-input${userQty !== '' ? ' changed' : ''}"
           min="0" value="${userQty}"
           placeholder="${r.recommended}"
           oninput="onSiQtyInput('${key}', this)"
           onchange="onSiQtyInput('${key}', this)">
       </td>
-      <td style="min-width:120px;max-width:160px">
+      <td>
         <input type="text" class="si-memo-input" value="${userMemo}"
+          placeholder="直営優先・入荷待ちなど"
           oninput="onSiMemoInput('${key}', this)">
       </td>
     </tr>`;
@@ -4125,19 +4675,11 @@ function siAutoFill() {
 
 // CSV出力
 function exportSiCsv() {
-  const header = ['CS品番','商品名','カラー','サイズ','価格タイプ','販売タイプ','前日販売数','注文数','販売合計','販売可能数(ZOZO)','自社在庫合計','直近30日販売数','推奨フォロー数','確定フォロー数','メモ'];
+  const header = ['CS品番','商品名','カラー','サイズ','前日販売数','注文数','合算数','販売可能数(ZOZO)','自社在庫合計','倉庫','オンライン','代官山','名古屋','神戸','bazar','推奨フォロー数','確定フォロー数','メモ'];
   const rows = siRows.map(r => {
-    const own = r.ownStock || {total:0};
+    const own = r.ownStock || {total:0,warehouse:0,online:0,daikanyama:0,nagoya:0,kobe:0,bazar:0};
     const qty = siUserQty[r.key] !== undefined ? siUserQty[r.key] : r.recommended;
-    return [
-      r.csSku, r.name, r.color, r.size,
-      r.priceType, r.salesType,
-      r.prevDay, r.orderQty, r.combined,
-      r.available, own.total,
-      r.sales30,
-      r.recommended, qty,
-      siUserMemo[r.key]||''
-    ];
+    return [r.csSku, r.name, r.color, r.size, r.prevDay, r.orderQty, r.combined, r.available, own.total, own.warehouse, own.online, own.daikanyama, own.nagoya, own.kobe, own.bazar, r.recommended, qty, siUserMemo[r.key]||''];
   });
   const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const bom = '\uFEFF';
@@ -4265,7 +4807,7 @@ function setupDropZone(zoneId, inputId, handler) {
     </div>
     <!-- 売上数量データ -->
     <div class="card" style="margin-bottom:0">
-      <div class="card-head"><div class="card-head-title">🛒 指定期間の売上数量 <span style="font-size:10px;font-weight:400;color:var(--muted)">（ZOZOダウンロード）</span> <span style="font-size:10px;padding:2px 7px;border-radius:4px;background:#f0f0e8;color:var(--muted);font-weight:600">任意</span></div></div>
+      <div class="card-head"><div class="card-head-title">🛒 指定期間の売上数量 <span style="font-size:10px;font-weight:400;color:var(--muted)">（ZOZOダウンロード）</span></div></div>
       <div class="card-body" style="padding:14px">
         <div class="upload-zone" id="siSalesZone" onclick="document.getElementById('siSalesInput').click()">
           <div class="upload-icon">🛒</div>
@@ -4304,23 +4846,23 @@ function setupDropZone(zoneId, inputId, handler) {
       </div>
     </div>
     <div class="tbl-wrap">
-      <table style="table-layout:fixed;width:100%">
+      <table>
         <thead>
           <tr style="background:var(--surface2)">
-            <th style="width:36px">#</th>
-            <th style="width:72px">CS品番</th>
+            <th style="width:40px">#</th>
+            <th>CS品番</th>
             <th>商品名</th>
-            <th style="width:70px">カラー</th>
-            <th style="width:55px">サイズ</th>
-            <th style="width:52px">価格タイプ</th>
-            <th style="width:48px">販売タイプ</th>
-            <th class="text-right" style="width:68px" title="前日販売数 + 注文数">販売合計<br><span style="font-size:9px;font-weight:400;color:var(--muted)">前日+注文</span></th>
-            <th class="text-right" style="width:64px">販売可能数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">ZOZO</span></th>
-            <th class="text-right" style="width:60px" title="倉庫+オンライン+代官山+名古屋+神戸+bazar">自社在庫<br><span style="font-size:9px;font-weight:400;color:var(--muted)">合計</span></th>
-            <th class="text-right" style="width:60px" title="直近30日販売数（ZOZO在庫分析X列）">直近30日<br><span style="font-size:9px;font-weight:400;color:var(--muted)">販売数</span></th>
-            <th class="text-right" style="width:50px">推奨<br><span style="font-size:9px;font-weight:400;color:var(--muted)">フォロー</span></th>
-            <th style="width:72px" class="text-center">フォロー数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">確定入力</span></th>
-            <th style="width:130px">メモ</th>
+            <th>カラー</th>
+            <th>サイズ</th>
+            <th class="text-right" title="前日販売数 + 注文数">合算数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">前日+注文</span></th>
+            <th class="text-right">販売可能数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">ZOZO</span></th>
+            <th class="text-right" title="倉庫+オンライン+代官山+名古屋+神戸+bazar">自社在庫<br><span style="font-size:9px;font-weight:400;color:var(--muted)">合計</span></th>
+            <th>
+              <span title="倉庫/オンライン/代官山/名古屋/神戸/bazar">店舗別在庫</span>
+            </th>
+            <th class="text-right">推奨<br><span style="font-size:9px;font-weight:400;color:var(--muted)">フォロー</span></th>
+            <th style="width:80px" class="text-center">フォロー数<br><span style="font-size:9px;font-weight:400;color:var(--muted)">確定入力</span></th>
+            <th>メモ</th>
           </tr>
         </thead>
         <tbody id="siTableBody"></tbody>
@@ -4362,6 +4904,7 @@ function setupDropZone(zoneId, inputId, handler) {
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('gasModal')">キャンセル</button>
       <button class="btn btn-ghost" onclick="testGasConnection()">🔗 接続テスト</button>
+      <button class="btn btn-ghost" onclick="forceSyncOrdersNow()">☁️ 発注データ全件保存</button>
       <button class="btn btn-primary" onclick="saveGasSettings()">保存して有効化</button>
     </div>
   </div>
